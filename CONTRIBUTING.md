@@ -11,7 +11,7 @@ Thanks for helping. Bug reports, data corrections and code are all welcome.
   [grid mapping correction](https://github.com/stevensu04/eco-router-mcp/issues/new?template=grid-mapping.yml).
 - **Add a new cloud region** when a provider launches one.
 - **Add grid-level annual data** for a country that still uses a national
-  average, such as Canada, Australia, India, Japan or Brazil. The data needs
+  average, such as Australia. The data needs
   a license that allows redistribution.
 
 ## Development setup
@@ -57,7 +57,7 @@ Every value in `src/data/` must be traceable to a public source.
 - **Region entries** (`src/data/regions.ts`): cite the provider's official
   region list. If the grid zone depends on an assumption, add a
   `gridZoneNote` that says what was assumed.
-- **Generated files** (`baseline-intensity.ts`, `zone-baseline-intensity.ts`):
+- **Generated files** (`baseline-intensity.ts` and everything in `zone-baseline/` except `index.ts`):
   do not edit them by hand. Change the script under `scripts/` and run it.
 - **Licenses**: only use data whose license allows redistribution in an MIT
   project, and add attribution to the README and the generated file header.

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createCarbonProvider } from "../src/carbon/provider.js";
 import { BASELINE_INTENSITY } from "../src/data/baseline-intensity.js";
 import { type CloudRegion, REGIONS } from "../src/data/regions.js";
-import { ZONE_BASELINE_INTENSITY } from "../src/data/zone-baseline-intensity.js";
+import { ZONE_BASELINE_INTENSITY } from "../src/data/zone-baseline/index.js";
 
 const nsw: CloudRegion = { provider: "aws", id: "ap-southeast-2", name: "Sydney", location: "Sydney", country: "AU", lat: -33.87, lon: 151.21, gridZone: "AU-NSW" };
 const nsw2: CloudRegion = { ...nsw, provider: "azure", id: "australiaeast" };
@@ -19,9 +19,15 @@ describe("baseline data", () => {
     expect(missing).toEqual([]);
   });
 
-  it("has a grid-level annual average for every US region", () => {
-    const missing = REGIONS.filter((r) => r.country === "US" && !ZONE_BASELINE_INTENSITY[r.gridZone]).map((r) => r.id);
+  it.each(["US", "CA"])("has a grid-level annual average for every region in %s", (country) => {
+    const missing = REGIONS.filter((r) => r.country === country && !ZONE_BASELINE_INTENSITY[r.gridZone]).map((r) => r.id);
     expect(missing).toEqual([]);
+  });
+
+  it("keeps Quebec, Ontario and Alberta in their expected order", () => {
+    const [qc, on, ab] = ["CA-QC", "CA-ON", "CA-AB"].map((z) => ZONE_BASELINE_INTENSITY[z]!.intensity);
+    expect(qc).toBeLessThan(on!);
+    expect(on).toBeLessThan(ab!);
   });
 });
 
@@ -41,6 +47,12 @@ describe("createCarbonProvider", () => {
       granularity: "grid-zone",
       intensity: ZONE_BASELINE_INTENSITY["US-MIDA-PJM"]!.intensity,
     });
+  });
+
+  it("uses Canadian provincial averages", async () => {
+    const montreal: CloudRegion = { ...virginia, id: "ca-central-1", country: "CA", gridZone: "CA-QC" };
+    const reading = await createCarbonProvider().getReading(montreal);
+    expect(reading).toMatchObject({ source: "eccc-nir-annual", granularity: "grid-zone", intensity: ZONE_BASELINE_INTENSITY["CA-QC"]!.intensity });
   });
 
   it("falls back to the grid-level average when live data fails", async () => {

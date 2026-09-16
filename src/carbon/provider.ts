@@ -1,6 +1,6 @@
 import { BASELINE_INTENSITY } from "../data/baseline-intensity.js";
 import type { CloudRegion } from "../data/regions.js";
-import { ZONE_BASELINE_INTENSITY } from "../data/zone-baseline-intensity.js";
+import { ZONE_BASELINE_INTENSITY } from "../data/zone-baseline/index.js";
 import { fetchForecast, fetchLatestIntensity } from "./electricityMaps.js";
 import type { CarbonForecast, CarbonProvider, CarbonReading } from "./types.js";
 
@@ -17,7 +17,7 @@ export function baselineReading(region: CloudRegion, fallbackReason?: string): C
   const reason = fallbackReason ? { fallbackReason } : {};
   const zone = ZONE_BASELINE_INTENSITY[region.gridZone];
   if (zone) {
-    return { intensity: zone.intensity, source: "epa-egrid-annual", granularity: "grid-zone", asOf: String(zone.year), ...reason };
+    return { intensity: zone.intensity, source: zone.source, granularity: "grid-zone", asOf: String(zone.year), ...reason };
   }
   const country = BASELINE_INTENSITY[region.country];
   if (!country) throw new Error(`No baseline carbon intensity for country ${region.country}`);

@@ -23,11 +23,13 @@ First public release.
   Electricity Maps grid zones, with notes where a mapping relies on an
   assumption.
 - Annual carbon intensity that works with no setup: grid-level for the US
-  (EPA eGRID with Ember lifecycle factors) and national elsewhere (Ember).
+  (EPA eGRID) and provincial for Canada (National Inventory Report), both with
+  Ember lifecycle factors, and national elsewhere (Ember).
 - Optional live grid data with your own Electricity Maps API token, cached per
   zone and falling back to annual averages.
 - `EU` and `EEA` country groups for data residency filters.
-- Scripts to refresh annual data from Ember and EPA eGRID.
+- Scripts to refresh annual data from Ember, EPA eGRID and Canada's National
+  Inventory Report.
 
 [Unreleased]: https://github.com/stevensu04/eco-router-mcp/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/stevensu04/eco-router-mcp/releases/tag/v0.1.0

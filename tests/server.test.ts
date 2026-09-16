@@ -68,6 +68,14 @@ describe("eco-router MCP server", () => {
     expect(data.notes.some((n) => n.includes("share a national annual average"))).toBe(false);
   });
 
+  it("tells Canadian grids apart without a token", async () => {
+    const result = await client.callTool({ name: "rank_regions", arguments: { countries: ["CA"], limit: 10 } });
+    const data = result.structuredContent as { results: { gridZone: string; carbonSource: string }[]; notes: string[] };
+    expect(data.results.every((r) => r.carbonSource === "eccc-nir-annual")).toBe(true);
+    expect(data.results.map((r) => r.gridZone)).toEqual(["CA-QC", "CA-QC", "CA-QC", "CA-ON", "CA-ON", "CA-AB"]);
+    expect(data.notes.some((n) => n.includes("Open Government Licence - Canada"))).toBe(true);
+  });
+
   it("reports invalid combinations as tool errors", async () => {
     const result = await client.callTool({ name: "rank_regions", arguments: { maxLatencyMs: 50 } });
     expect(result.isError).toBe(true);

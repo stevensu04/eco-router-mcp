@@ -1,5 +1,5 @@
 /**
- * Regenerates src/data/zone-baseline-intensity.ts with annual carbon intensity
+ * Regenerates src/data/zone-baseline/us-egrid.ts with annual carbon intensity
  * for US grid zones, from EPA eGRID balancing authority data.
  *
  *   npm run update:egrid
@@ -16,13 +16,13 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { REGIONS } from "../src/data/regions.js";
 import { loadEmberRows } from "./lib/ember.js";
+import { checkNational, emberCountryYear, mixIntensity } from "./lib/lifecycle.js";
 import { readSheet, sheetNames } from "./lib/xlsx.js";
 
 // Latest official release. EPA paused eGRID after this edition.
 const EGRID_URL = "https://www.epa.gov/system/files/documents/2025-06/egrid2023_data_rev2.xlsx";
 const EGRID_EDITION = "eGRID2023 (Revision 2)";
-const OUTPUT = fileURLToPath(new URL("../src/data/zone-baseline-intensity.ts", import.meta.url));
-const MAX_NATIONAL_DEVIATION = 0.05;
+const OUTPUT = fileURLToPath(new URL("../src/data/zone-baseline/us-egrid.ts", import.meta.url));
 
 // eGRID annual net generation columns (suffix after BAGEN / USGEN) -> Ember source.
 const FUEL_COLUMNS: Record<string, string> = {
@@ -63,19 +63,13 @@ function keyedRows(path: string, prefix: "BA" | "US"): Record<string, string>[] 
 }
 
 function lifecycleIntensity(row: Record<string, string>, prefix: "BAGEN" | "USGEN", factors: Map<string, number>): number {
-  let emissions = 0;
-  let generation = 0;
-  for (const [suffix, source] of Object.entries(FUEL_COLUMNS)) {
-    const mwh = Number(row[prefix + suffix] || 0);
-    // Pumped storage can be net negative; it is a load, not a source.
-    if (!(mwh > 0)) continue;
-    const factor = factors.get(source);
-    if (factor === undefined) throw new Error(`No Ember US factor for ${source}`);
-    emissions += mwh * factor;
-    generation += mwh;
-  }
-  if (generation === 0) throw new Error("No generation in row");
-  return emissions / generation;
+  return mixIntensity(
+    Object.entries(FUEL_COLUMNS).map(([suffix, source]) => {
+      const factor = factors.get(source);
+      if (factor === undefined) throw new Error(`No Ember US factor for ${source}`);
+      return { generation: Number(row[prefix + suffix] || 0), factor };
+    }),
+  );
 }
 
 const path = await egridPath();
@@ -83,24 +77,11 @@ const baRows = keyedRows(path, "BA");
 const usRow = keyedRows(path, "US")[0]!;
 const year = Number(usRow.YEAR);
 
-const ember = await loadEmberRows(values.ember);
-const usYear = ember.filter((r) => r["ISO 3 code"] === "USA" && Number(r.Year) === year);
-const factors = new Map<string, number>();
-for (const r of usYear) {
-  const twh = Number(r["Generation (TWh)"]);
-  if (r["Is aggregated source"] === "False" && twh > 0 && r["Electricity source"] !== "Net imports") {
-    factors.set(r["Electricity source"]!, (Number(r["Emissions (MtCO2e)"]) / twh) * 1000);
-  }
-}
-const emberNational = Number(usYear.find((r) => r["Electricity source"] === "Total generation")?.["Emissions intensity (gCO2e/kWh)"]);
-if (!Number.isFinite(emberNational)) throw new Error(`Ember has no US total for ${year}`);
-
+const ember = emberCountryYear(await loadEmberRows(values.ember), "USA", year);
+const { factors } = ember;
+const emberNational = ember.intensity;
 const egridNational = lifecycleIntensity(usRow, "USGEN", factors);
-const deviation = egridNational / emberNational - 1;
-console.error(`US ${year}: eGRID mix with Ember factors ${egridNational.toFixed(1)} vs Ember ${emberNational} (${(deviation * 100).toFixed(1)}%)`);
-if (Math.abs(deviation) > MAX_NATIONAL_DEVIATION) {
-  throw new Error("National check failed; review the fuel mapping before publishing new values.");
-}
+const deviation = checkNational(`US ${year} (eGRID)`, egridNational, emberNational);
 
 const zones = [...new Set(REGIONS.filter((r) => r.country === "US").map((r) => r.gridZone))].sort();
 const entries = zones.map((zone) => {
@@ -125,7 +106,7 @@ writeFileSync(
 // rounded to 0.1 gCO2e/kWh. Check: the same method on eGRID's US total gives
 // ${egridNational.toFixed(1)} against Ember's ${emberNational} (${deviation >= 0 ? "+" : ""}${(deviation * 100).toFixed(1)}%).
 
-export const ZONE_BASELINE_SOURCE = {
+export const US_EGRID_SOURCE = {
   name: "US EPA ${EGRID_EDITION}, lifecycle-adjusted with Ember factors",
   url: "https://www.epa.gov/egrid",
   license: "Public domain (eGRID); CC BY 4.0 (Ember factors)",
@@ -133,7 +114,7 @@ export const ZONE_BASELINE_SOURCE = {
 } as const;
 
 /** Annual lifecycle emissions intensity of generation, gCO2e/kWh, by Electricity Maps zone key. */
-export const ZONE_BASELINE_INTENSITY: Readonly<Record<string, { intensity: number; year: number }>> = {
+export const US_EGRID_ZONES: Readonly<Record<string, { intensity: number; year: number }>> = {
 ${entries.join("\n")}
 };
 `,

@@ -13,8 +13,9 @@ Checklist for maintainers publishing a new version.
    `tests/metadata.test.ts` fails if these disagree.
 3. In `CHANGELOG.md`, move the **Unreleased** entries under a new version
    heading and update the compare links.
-4. If a new Ember or eGRID release is out, run `npm run update:baseline` and
-   `npm run update:egrid` and review the diff.
+4. If a new Ember, eGRID or Canadian National Inventory Report release is out,
+   run `npm run update:baseline`, `npm run update:egrid` and
+   `npm run update:canada`, and review the diff.
 5. Run `npm run typecheck && npm test && npm run build`.
 6. Check the package contents with `npm pack --dry-run`.
 

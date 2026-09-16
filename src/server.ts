@@ -85,7 +85,7 @@ const RankRegionsOutput = z.object({
       gridZone: z.string(),
       gridZoneNote: z.string().optional(),
       carbonIntensity: z.number(),
-      carbonSource: z.enum(["electricity-maps", "epa-egrid-annual", "ember-annual"]),
+      carbonSource: z.enum(["electricity-maps", "epa-egrid-annual", "eccc-nir-annual", "ember-annual"]),
       carbonGranularity: z.enum(["grid-zone", "country"]),
       carbonAsOf: z.string(),
       estimatedRttMs: z.number().nullable(),

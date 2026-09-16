@@ -149,6 +149,7 @@ function describe(reading: CarbonReading, rtt: number | null): string {
   const source = {
     "electricity-maps": `live grid data from Electricity Maps, ${reading.asOf}`,
     "epa-egrid-annual": `${reading.asOf} grid average from EPA eGRID`,
+    "eccc-nir-annual": `${reading.asOf} provincial average from Canada's National Inventory Report`,
     "ember-annual": `${reading.asOf} national average from Ember`,
   }[reading.source];
   const parts = [`${Math.round(reading.intensity)} gCO2e/kWh (${source})`];
@@ -180,6 +181,12 @@ function buildNotes(carbon: CarbonProvider, ranked: { region: CloudRegion; readi
     notes.push(
       "US grid averages: US EPA eGRID generation mix with Ember lifecycle factors. " +
         "They describe generation inside each balancing authority and ignore imports.",
+    );
+  }
+  if (ranked.some((r) => r.reading.source === "eccc-nir-annual")) {
+    notes.push(
+      "Canadian provincial averages: Environment and Climate Change Canada, National Inventory Report Annex 7, with Ember lifecycle factors. " +
+        "Contains information licensed under the Open Government Licence - Canada.",
     );
   }
   if (ranked.some((r) => r.reading.source !== "electricity-maps")) {

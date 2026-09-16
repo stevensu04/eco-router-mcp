@@ -26,14 +26,14 @@ candidates", not "zero carbon".
 Without a token, each region uses the most specific annual average available.
 With a token, live data is used and the annual average becomes the fallback.
 
-| | US grid average | National average | Live (with a token) |
-|---|---|---|---|
-| Used for | US regions | All other regions | Every region, when available |
-| Source | [US EPA eGRID](https://www.epa.gov/egrid) generation mix, with Ember lifecycle factors | [Ember Yearly Electricity Data](https://ember-energy.org/data/yearly-electricity-data/) | [Electricity Maps API](https://www.electricitymaps.com/) `carbon-intensity/latest` |
-| Granularity | Balancing authority, annual | Country, latest year | Grid zone, hourly |
-| Emissions scope | Lifecycle, gCO2e/kWh | Lifecycle, gCO2e/kWh | Lifecycle, gCO2e/kWh (API default) |
-| Setup | None, shipped in the package | None, shipped in the package | `ELECTRICITY_MAPS_API_TOKEN` |
-| License | Public domain (eGRID), CC BY 4.0 (Ember factors) | CC BY 4.0 | Your Electricity Maps plan: free for academic and personal non-commercial use, paid for commercial use |
+| | US grid average | Canadian provincial average | National average | Live (with a token) |
+|---|---|---|---|---|
+| Used for | US regions | Canadian regions | All other regions | Every region, when available |
+| Source | [US EPA eGRID](https://www.epa.gov/egrid) generation mix, with Ember lifecycle factors | [Canada's National Inventory Report, Annex 7](https://data-donnees.az.ec.gc.ca/data/substances/monitor/canada-s-official-greenhouse-gas-inventory/) generation mix, with Ember lifecycle factors | [Ember Yearly Electricity Data](https://ember-energy.org/data/yearly-electricity-data/) | [Electricity Maps API](https://www.electricitymaps.com/) `carbon-intensity/latest` |
+| Granularity | Balancing authority, annual | Province, annual | Country, latest year | Grid zone, hourly |
+| Emissions scope | Lifecycle, gCO2e/kWh | Lifecycle, gCO2e/kWh | Lifecycle, gCO2e/kWh | Lifecycle, gCO2e/kWh (API default) |
+| Setup | None, shipped in the package | None, shipped in the package | None, shipped in the package | `ELECTRICITY_MAPS_API_TOKEN` |
+| License | Public domain (eGRID), CC BY 4.0 (Ember factors) | Open Government Licence – Canada, CC BY 4.0 (Ember factors) | CC BY 4.0 | Your Electricity Maps plan: free for academic and personal non-commercial use, paid for commercial use |
 
 All three report lifecycle emissions, so they can be compared. They still
 differ in two ways. The annual averages describe electricity **generated** in
@@ -73,10 +73,40 @@ intensity that differs from its generation.
 EPA paused eGRID after the eGRID2023 edition (data year 2023), so US values
 are older than most national averages.
 
+### Canadian provincial averages
+
+Canada's National Inventory Report publishes electricity generation by fuel
+for every province (Annex 7, Electricity in Canada: Summary and Intensity
+Tables). Eco Router applies the same method as for eGRID: each province's
+generation mix, weighted with Ember's Canadian lifecycle factors for the same
+year. It uses the latest year that is not marked preliminary.
+
+Two categories need a choice of factor:
+
+- **Other Fuels** (diesel, fuel oil, petroleum coke, biomass and more) is not
+  split by province, so it uses Ember's fossil factor. This never understates,
+  and it is a small share in the provinces with cloud regions.
+- **Other Renewables** (wind, solar and tidal) uses Ember's generation-weighted
+  factor for those three sources.
+
+The national check is looser than for the US. Annex 7 covers only
+main-activity producers, while Ember also counts industrial autoproducers,
+mostly gas cogeneration and industrial hydro. For 2023 the method gives 153.0
+against Ember's 174.4 (−12.3%), so the script allows up to 15%. As a second
+check, every published province must come out at or above the report's own
+direct combustion intensity, since lifecycle figures include upstream
+emissions.
+
+| Province | Direct (report) | Lifecycle (Eco Router) |
+|---|---|---|
+| Quebec | 1.5 | 27.7 |
+| Ontario | 53.9 | 104.2 |
+| Alberta | 420.3 | 575.1 |
+
 ### Limits of the national average
 
-Several countries outside the US also contain grids with very different carbon
-profiles, such as Canada, Australia, India, Japan and Brazil. With annual
+Several other countries also contain grids with very different carbon
+profiles, such as Australia, India and Japan. With annual
 averages only, every region in such a country gets the same value and the
 ranking cannot tell them apart. `rank_regions` adds a note when this affects
 the results.
@@ -87,7 +117,8 @@ Ember publishes a new release every year. To regenerate the data files, run:
 
 ```bash
 npm run update:baseline   # national averages, src/data/baseline-intensity.ts
-npm run update:egrid      # US grid averages, src/data/zone-baseline-intensity.ts
+npm run update:egrid      # US grid averages, src/data/zone-baseline/us-egrid.ts
+npm run update:canada     # Canadian provincial averages, src/data/zone-baseline/ca-nir.ts
 ```
 
 ## Finding a clean time window

@@ -8,7 +8,7 @@
 // rounded to 0.1 gCO2e/kWh. Check: the same method on eGRID's US total gives
 // 400.2 against Ember's 392.9 (+1.9%).
 
-export const ZONE_BASELINE_SOURCE = {
+export const US_EGRID_SOURCE = {
   name: "US EPA eGRID2023 (Revision 2), lifecycle-adjusted with Ember factors",
   url: "https://www.epa.gov/egrid",
   license: "Public domain (eGRID); CC BY 4.0 (Ember factors)",
@@ -16,7 +16,7 @@ export const ZONE_BASELINE_SOURCE = {
 } as const;
 
 /** Annual lifecycle emissions intensity of generation, gCO2e/kWh, by Electricity Maps zone key. */
-export const ZONE_BASELINE_INTENSITY: Readonly<Record<string, { intensity: number; year: number }>> = {
+export const US_EGRID_ZONES: Readonly<Record<string, { intensity: number; year: number }>> = {
   "US-CAL-CISO": { intensity: 248.8, year: 2023 },
   "US-CAL-LDWP": { intensity: 539.6, year: 2023 },
   "US-CAR-SC": { intensity: 749, year: 2023 },

@@ -30,6 +30,7 @@
     "typecheck": "tsc --noEmit",
     "update:baseline": "tsx scripts/update-baseline.ts",
     "update:egrid": "tsx scripts/update-egrid.ts",
+    "update:canada": "tsx scripts/update-canada.ts",
     "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "keywords": [

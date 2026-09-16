@@ -46,7 +46,7 @@ claude mcp add eco-router -- npx -y eco-router-mcp
 ### Live grid data (optional)
 
 Out of the box, Eco Router uses annual averages (per grid in the US, per
-country elsewhere), so it works with no setup. For hourly, grid-level data, set `ELECTRICITY_MAPS_API_TOKEN` to your
+province in Canada, per country elsewhere), so it works with no setup. For hourly, grid-level data, set `ELECTRICITY_MAPS_API_TOKEN` to your
 own [Electricity Maps](https://www.electricitymaps.com/) API token. Zones your
 plan does not cover fall back to the annual average automatically.
 
@@ -106,7 +106,8 @@ documented in [docs/regions.md](docs/regions.md).
 - [x] `rank_regions`: rank regions by carbon intensity and estimated latency,
       with hard limits such as allowed countries or a carbon ceiling
 - [x] US grid-level annual data without a token (EPA eGRID)
-- [ ] Grid-level annual data for Canada, Australia, India, Japan and Brazil
+- [x] Canadian provincial annual data without a token (National Inventory Report)
+- [ ] Grid-level annual data for Australia
 - [x] Time shifting: suggest when to run, using carbon forecasts
 - [ ] Publish to npm and the MCP Registry
 
@@ -120,6 +121,7 @@ npm run build      # compiles to dist/
 npm run dev        # runs the server over stdio from source
 npm run update:baseline  # refreshes national averages from Ember
 npm run update:egrid     # refreshes US grid averages from EPA eGRID
+npm run update:canada    # refreshes Canadian provincial averages
 ```
 
 ## Data sources
@@ -128,6 +130,11 @@ npm run update:egrid     # refreshes US grid averages from EPA eGRID
   licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 - US grid generation mix: [US EPA eGRID](https://www.epa.gov/egrid) (public domain),
   converted to lifecycle emissions with Ember's US factors.
+- Canadian provincial generation mix: Environment and Climate Change Canada,
+  [National Inventory Report, Annex 7](https://data-donnees.az.ec.gc.ca/data/substances/monitor/canada-s-official-greenhouse-gas-inventory/),
+  converted to lifecycle emissions with Ember's Canadian factors. Contains
+  information licensed under the
+  [Open Government Licence – Canada](https://open.canada.ca/en/open-government-licence-canada).
 - Live carbon intensity (optional): Source: [ElectricityMaps.com](https://www.electricitymaps.com/),
   using your own API token and subject to the terms of your plan.
 - Region lists: official AWS, Google Cloud and Azure documentation. See
