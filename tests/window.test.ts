@@ -70,6 +70,27 @@ describe("findCleanWindows", () => {
     expect(frankfurt.estimatedKgCO2eIfStartedNow).toBe(35);
   });
 
+  it("adds local times when a time zone is given", async () => {
+    const result = await findCleanWindows(carbon, { regions: ["aws/eu-central-1"], durationHours: 2, timezone: "Australia/Brisbane" }, REGIONS);
+    expect(result.timezone).toBe("Australia/Brisbane");
+    expect(result.results[0]).toMatchObject({
+      bestStart: "2026-09-17T02:00:00.000Z",
+      bestStartLocal: "2026-09-17 12:00 (GMT+10)",
+      bestEndLocal: "2026-09-17 14:00 (GMT+10)",
+    });
+  });
+
+  it("tells the agent to ask for the time zone instead of guessing", async () => {
+    const result = await findCleanWindows(carbon, { regions: ["aws/eu-central-1"], durationHours: 2 }, REGIONS);
+    expect(result.timezone).toBeNull();
+    expect(result.results[0]!.bestStartLocal).toBeNull();
+    expect(result.notes[0]).toMatch(/Ask the user/);
+  });
+
+  it("rejects an invalid time zone", async () => {
+    await expect(findCleanWindows(carbon, { regions: ["aws/eu-central-1"], durationHours: 2, timezone: "Brisbane" }, REGIONS)).rejects.toThrow(/Unknown time zone/);
+  });
+
   it("lists zones without a forecast instead of failing", async () => {
     const result = await findCleanWindows(carbon, { countries: ["DE", "US"], durationHours: 1 }, REGIONS);
     expect(result.results.map((r) => r.gridZone)).toEqual(["DE"]);

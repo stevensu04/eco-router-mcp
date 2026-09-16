@@ -110,7 +110,12 @@ processing.
    average is.
 
 Results are sorted by the best window's average intensity, so the list answers
-both where and when to run. Forecasts change every hour; check again shortly
+both where and when to run.
+
+Times are always returned in UTC. Pass `timezone` (an IANA name such as
+`Australia/Brisbane`) to also get `bestStartLocal` and `bestEndLocal`, which
+account for daylight saving time. Without it, the result tells the agent to ask
+the user for their time zone rather than guess a conversion. Forecasts change every hour; check again shortly
 before starting a long job.
 
 This tool needs live data. Annual averages do not change by hour, so without a

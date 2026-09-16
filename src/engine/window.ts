@@ -1,6 +1,7 @@
 import type { CarbonProvider, ForecastPoint } from "../carbon/types.js";
 import type { CloudProvider, CloudRegion } from "../data/regions.js";
 import { type RegionFilter, selectRegions } from "./select.js";
+import { assertTimeZone, formatLocal } from "./time.js";
 
 const HOUR_MS = 60 * 60 * 1000;
 /** Keeps a single request from spending a small plan's hourly quota. */
@@ -13,6 +14,8 @@ export interface WindowOptions extends RegionFilter {
   withinHours?: number;
   energyKwh?: number;
   limit?: number;
+  /** IANA time zone for local times in the result, e.g. "Australia/Brisbane". */
+  timezone?: string;
 }
 
 export interface WindowRegion {
@@ -31,6 +34,9 @@ export interface WindowResult {
   regions: WindowRegion[];
   bestStart: string;
   bestEnd: string;
+  /** bestStart in the requested time zone, or null without one. */
+  bestStartLocal: string | null;
+  bestEndLocal: string | null;
   /** Average forecast intensity over the best window, gCO2e/kWh. */
   bestIntensity: number;
   /** Average forecast intensity if the job started in the current hour. */
@@ -46,6 +52,7 @@ export interface WindowSearchResult {
   generatedAt: string;
   durationHours: number;
   withinHours: number;
+  timezone: string | null;
   evaluatedRegions: number;
   evaluatedZones: number;
   results: WindowResult[];
@@ -94,6 +101,9 @@ export async function findCleanWindows(carbon: CarbonProvider, options: WindowOp
   if (options.durationHours > withinHours) {
     throw new Error(`A ${options.durationHours}-hour job cannot finish within ${withinHours} hours.`);
   }
+  const timezone = options.timezone?.trim() || null;
+  if (timezone) assertTimeZone(timezone);
+  const local = (iso: string) => (timezone ? formatLocal(iso, timezone) : null);
 
   const candidates = selectRegions(options, all);
   const zones = new Set(candidates.map((r) => r.gridZone));
@@ -129,6 +139,7 @@ export async function findCleanWindows(carbon: CarbonProvider, options: WindowOp
         return;
       }
       const start = forecast.points[window.startIndex]!.datetime;
+      const end = new Date(Date.parse(start) + options.durationHours * HOUR_MS).toISOString();
       found.push({
         gridZone,
         country: regions[0]!.country,
@@ -140,7 +151,9 @@ export async function findCleanWindows(carbon: CarbonProvider, options: WindowOp
           ...(r.gridZoneNote ? { gridZoneNote: r.gridZoneNote } : {}),
         })),
         bestStart: start,
-        bestEnd: new Date(Date.parse(start) + options.durationHours * HOUR_MS).toISOString(),
+        bestEnd: end,
+        bestStartLocal: local(start),
+        bestEndLocal: local(end),
         bestIntensity: round1(window.average),
         startNowIntensity: round1(window.startNowAverage),
         savingsVsNowPercent: window.startNowAverage > 0 ? round1((1 - window.average / window.startNowAverage) * 100) : 0,
@@ -165,7 +178,10 @@ export async function findCleanWindows(carbon: CarbonProvider, options: WindowOp
   unavailable.sort((a, b) => a.gridZone.localeCompare(b.gridZone));
 
   const notes = [
-    "Times are UTC. The first forecast hour stands in for starting now.",
+    timezone
+      ? `bestStart and bestEnd are UTC; bestStartLocal and bestEndLocal are in ${timezone}.`
+      : "Times are UTC and the user's time zone is unknown. Ask the user for it, or call again with timezone, instead of guessing a conversion.",
+    "The first forecast hour stands in for starting now.",
     "Forecasts are estimates and change hourly; re-check shortly before starting.",
     "Live carbon data source: ElectricityMaps.com.",
   ];
@@ -177,6 +193,7 @@ export async function findCleanWindows(carbon: CarbonProvider, options: WindowOp
     generatedAt: new Date().toISOString(),
     durationHours: options.durationHours,
     withinHours,
+    timezone,
     evaluatedRegions: candidates.length,
     evaluatedZones: byZone.size,
     results: found.slice(0, options.limit ?? 5).map((r, i) => ({ rank: i + 1, ...r })),

@@ -86,7 +86,8 @@ two days:
   "countries": ["DE", "FR", "SE"],
   "durationHours": 6,
   "withinHours": 48,
-  "energyKwh": 500
+  "energyKwh": 500,
+  "timezone": "Australia/Brisbane"
 }
 ```
 

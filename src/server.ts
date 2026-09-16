@@ -117,12 +117,19 @@ const FindCleanWindowInput = z.object({
     .describe(`The job must finish within this many hours from now. Default 24, max ${MAX_FORECAST_HOURS}.`),
   energyKwh: z.number().positive().optional().describe("Estimated job energy, to report emissions for each option."),
   limit: z.number().int().min(1).max(20).optional().describe("How many options to return. Default 5."),
+  timezone: z
+    .string()
+    .optional()
+    .describe(
+      'The user\'s IANA time zone, e.g. "Australia/Brisbane", to get local start times. If you do not know it, ask the user rather than guessing.',
+    ),
 });
 
 const FindCleanWindowOutput = z.object({
   generatedAt: z.string(),
   durationHours: z.number().int(),
   withinHours: z.number().int(),
+  timezone: z.string().nullable(),
   evaluatedRegions: z.number().int(),
   evaluatedZones: z.number().int(),
   results: z.array(
@@ -141,6 +148,8 @@ const FindCleanWindowOutput = z.object({
       ),
       bestStart: z.string(),
       bestEnd: z.string(),
+      bestStartLocal: z.string().nullable(),
+      bestEndLocal: z.string().nullable(),
       bestIntensity: z.number(),
       startNowIntensity: z.number(),
       savingsVsNowPercent: z.number(),
@@ -241,7 +250,8 @@ export function createServer(options: ServerOptions = {}): McpServer {
       title: "Find the cleanest time to run a job",
       description:
         "For flexible batch jobs, find when in the next hours (up to 72) each candidate region's grid is forecast to be cleanest, " +
-        "and how much that saves compared with starting now. Needs ELECTRICITY_MAPS_API_TOKEN with forecast access. " +
+        "and how much that saves compared with starting now. Pass the user's time zone to get local times. " +
+        "Needs ELECTRICITY_MAPS_API_TOKEN with forecast access. " +
         `Limit candidates with regions, providers or countries (at most ${MAX_FORECAST_ZONES} grid zones per call).`,
       inputSchema: FindCleanWindowInput,
       outputSchema: FindCleanWindowOutput,
@@ -252,7 +262,8 @@ export function createServer(options: ServerOptions = {}): McpServer {
         const result = await findCleanWindows(carbon, input);
         const lines = result.results.map(
           (r) =>
-            `#${r.rank} grid ${r.gridZone} (${r.country}): start ${r.bestStart}, ` +
+            `#${r.rank} grid ${r.gridZone} (${r.country}): start ` +
+            (r.bestStartLocal ? `${r.bestStartLocal} to ${r.bestEndLocal} [UTC ${r.bestStart}], ` : `${r.bestStart} UTC, `) +
             `average ${r.bestIntensity} gCO2e/kWh over ${result.durationHours} h ` +
             `(starting now: ${r.startNowIntensity}, ${r.savingsVsNowPercent}% lower)` +
             (r.estimatedKgCO2e === null ? "" : `; about ${r.estimatedKgCO2e} kg CO2e vs ${r.estimatedKgCO2eIfStartedNow} kg now`) +
