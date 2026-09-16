@@ -30,7 +30,8 @@ describe("eco-router MCP server", () => {
 
   it("matches country codes case-insensitively", async () => {
     const result = await client.callTool({ name: "list_regions", arguments: { country: "au" } });
-    const data = result.structuredContent as { regions: { country: string }[] };
-    expect(data.regions.map((r) => r.country)).toEqual(["AU"]);
+    const data = result.structuredContent as { count: number; regions: { country: string }[] };
+    expect(data.count).toBeGreaterThan(0);
+    expect(data.regions.every((r) => r.country === "AU")).toBe(true);
   });
 });

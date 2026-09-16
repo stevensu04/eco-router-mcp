@@ -12,8 +12,9 @@ electricity grids they draw from, so an agent can ask:
 
 and get back a ranked shortlist with the reasoning behind it.
 
-> **Status: early development (v0.1).** The server runs and lists a seed set of
-> regions. Carbon ranking is in progress, see [Roadmap](#roadmap).
+> **Status: early development (v0.1).** The server runs and knows all 134
+> public AWS, Google Cloud and Azure regions. Carbon ranking is in progress,
+> see [Roadmap](#roadmap).
 
 ## Install
 
@@ -42,12 +43,15 @@ claude mcp add eco-router -- npx -y eco-router-mcp
 
 | Tool | What it does |
 |---|---|
-| `list_regions` | Lists known cloud regions and the grid zone each one draws power from. Filter by `provider` (`aws`, `gcp`, `azure`) or `country`. |
+| `list_regions` | Lists cloud regions and the grid zone each one draws power from. Filter by `provider` (`aws`, `gcp`, `azure`) or `country`. |
+
+How regions are mapped to grids, and which mappings rest on assumptions, is
+documented in [docs/regions.md](docs/regions.md).
 
 ## Roadmap
 
 - [x] MCP server skeleton over stdio
-- [ ] Full AWS, Google Cloud and Azure region dataset with sources
+- [x] Full AWS, Google Cloud and Azure region dataset with sources
 - [ ] Carbon data: published annual averages by default, live data with an
       optional Electricity Maps API token
 - [ ] `rank_regions`: rank regions by carbon intensity and estimated latency,

@@ -10,11 +10,13 @@ const ProviderSchema = z.enum(["aws", "gcp", "azure"]);
 const RegionSchema = z.object({
   provider: ProviderSchema,
   id: z.string(),
+  name: z.string(),
   location: z.string(),
   country: z.string(),
   lat: z.number(),
   lon: z.number(),
   gridZone: z.string(),
+  gridZoneNote: z.string().optional(),
 });
 
 const ListRegionsInput = z.object({
@@ -53,7 +55,11 @@ export function createServer(): McpServer {
       );
 
       // MCP clients such as Claude read `content`, so the text carries the data too.
-      const lines = regions.map((r) => `${r.provider}/${r.id}: ${r.location}, ${r.country} (grid ${r.gridZone})`);
+      const lines = regions.map(
+        (r) =>
+          `${r.provider}/${r.id}: ${r.location}, ${r.country} (grid ${r.gridZone})` +
+          (r.gridZoneNote ? ` [note: ${r.gridZoneNote}]` : ""),
+      );
       return {
         content: [{ type: "text", text: `${regions.length} regions:\n${lines.join("\n")}` }],
         structuredContent: { count: regions.length, regions },
