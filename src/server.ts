@@ -1,6 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import * as z from "zod";
+import { createCarbonProvider } from "./carbon/provider.js";
+import type { CarbonProvider } from "./carbon/types.js";
 import { REGIONS } from "./data/regions.js";
+import { rankRegions } from "./engine/rank.js";
 
 export const SERVER_NAME = "eco-router";
 export const SERVER_VERSION = "0.1.0";
@@ -33,8 +36,66 @@ const ListRegionsOutput = z.object({
   regions: z.array(RegionSchema),
 });
 
+const CountryCode = z.string().length(2).describe("ISO 3166-1 alpha-2 country code.");
+
+const RankRegionsInput = z.object({
+  providers: z.array(ProviderSchema).optional().describe("Only consider these cloud providers. Default: all."),
+  countries: z
+    .array(CountryCode)
+    .optional()
+    .describe("Only consider regions in these countries, e.g. for data residency. Default: all."),
+  origin: z
+    .object({ lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180) })
+    .optional()
+    .describe("Where users or data are. Enables latency estimates and latency weighting."),
+  maxLatencyMs: z.number().positive().optional().describe("Exclude regions estimated slower than this round trip. Requires origin."),
+  maxCarbonIntensity: z.number().positive().optional().describe("Exclude regions above this carbon intensity, gCO2e/kWh."),
+  carbonWeight: z
+    .number()
+    .min(0)
+    .max(1)
+    .optional()
+    .describe("Weight on carbon versus latency, 0..1. Default 0.7. Only used with origin."),
+  energyKwh: z.number().positive().optional().describe("Estimated job energy, to report emissions per region."),
+  limit: z.number().int().min(1).max(20).optional().describe("How many regions to return. Default 5."),
+});
+
+const RankRegionsOutput = z.object({
+  generatedAt: z.string(),
+  evaluated: z.number().int(),
+  qualified: z.number().int(),
+  excluded: z.object({ maxCarbonIntensity: z.number().int(), maxLatencyMs: z.number().int() }),
+  results: z.array(
+    z.object({
+      rank: z.number().int(),
+      provider: ProviderSchema,
+      id: z.string(),
+      name: z.string(),
+      location: z.string(),
+      country: z.string(),
+      gridZone: z.string(),
+      gridZoneNote: z.string().optional(),
+      carbonIntensity: z.number(),
+      carbonSource: z.enum(["electricity-maps", "ember-annual"]),
+      carbonGranularity: z.enum(["grid-zone", "country"]),
+      carbonAsOf: z.string(),
+      estimatedRttMs: z.number().nullable(),
+      estimatedKgCO2e: z.number().nullable(),
+      score: z.number(),
+      reason: z.string(),
+    }),
+  ),
+  notes: z.array(z.string()),
+});
+
+export interface ServerOptions {
+  /** Defaults to annual averages only (no live data). */
+  carbon?: CarbonProvider;
+}
+
 /** Builds one MCP server instance with every Eco Router tool registered. */
-export function createServer(): McpServer {
+export function createServer(options: ServerOptions = {}): McpServer {
+  const carbon = options.carbon ?? createCarbonProvider();
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
 
   server.registerTool(
@@ -64,6 +125,44 @@ export function createServer(): McpServer {
         content: [{ type: "text", text: `${regions.length} regions:\n${lines.join("\n")}` }],
         structuredContent: { count: regions.length, regions },
       };
+    },
+  );
+
+  server.registerTool(
+    "rank_regions",
+    {
+      title: "Rank cloud regions by carbon",
+      description:
+        "Rank AWS, Google Cloud and Azure regions for a workload by the carbon intensity of their electricity grid, " +
+        "optionally balanced against estimated latency from an origin. Supports hard limits for allowed countries, " +
+        "maximum latency and maximum carbon intensity. Read `notes` before relying on close scores.",
+      inputSchema: RankRegionsInput,
+      outputSchema: RankRegionsOutput,
+      annotations: { readOnlyHint: true, idempotentHint: false, openWorldHint: carbon.live },
+    },
+    async (input) => {
+      try {
+        const result = await rankRegions(carbon, input);
+        const lines = result.results.map(
+          (r) =>
+            `#${r.rank} ${r.provider}/${r.id} (${r.location}, ${r.country}), score ${r.score}: ${r.reason}` +
+            (r.estimatedKgCO2e === null ? "" : `; about ${r.estimatedKgCO2e} kg CO2e for this job`) +
+            (r.gridZoneNote ? `; grid mapping note: ${r.gridZoneNote}` : ""),
+        );
+        const header =
+          `${result.qualified} of ${result.evaluated} regions met the constraints` +
+          (result.excluded.maxCarbonIntensity || result.excluded.maxLatencyMs
+            ? ` (excluded: ${result.excluded.maxCarbonIntensity} over the carbon limit, ${result.excluded.maxLatencyMs} over the latency limit)`
+            : "") +
+          ".";
+        const text = [header, ...(lines.length ? lines : ["No region met the constraints."]), "", ...result.notes.map((n) => `Note: ${n}`)].join("\n");
+        return { content: [{ type: "text", text }], structuredContent: result };
+      } catch (error) {
+        return {
+          isError: true,
+          content: [{ type: "text", text: error instanceof Error ? error.message : "Ranking failed." }],
+        };
+      }
     },
   );
 

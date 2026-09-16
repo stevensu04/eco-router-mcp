@@ -17,7 +17,8 @@
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsx src/index.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "update:baseline": "tsx scripts/update-baseline.ts"
   },
   "keywords": [
     "mcp",

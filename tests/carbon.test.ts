@@ -1,0 +1,69 @@
+import { describe, expect, it, vi } from "vitest";
+import { createCarbonProvider } from "../src/carbon/provider.js";
+import { BASELINE_INTENSITY } from "../src/data/baseline-intensity.js";
+import { type CloudRegion, REGIONS } from "../src/data/regions.js";
+
+const nsw: CloudRegion = { provider: "aws", id: "ap-southeast-2", name: "Sydney", location: "Sydney", country: "AU", lat: -33.87, lon: 151.21, gridZone: "AU-NSW" };
+const nsw2: CloudRegion = { ...nsw, provider: "azure", id: "australiaeast" };
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+}
+
+describe("baseline data", () => {
+  it("has an annual average for every region's country", () => {
+    const missing = [...new Set(REGIONS.map((r) => r.country))].filter((c) => !BASELINE_INTENSITY[c]);
+    expect(missing).toEqual([]);
+  });
+});
+
+describe("createCarbonProvider", () => {
+  it("uses national annual averages without a token", async () => {
+    const provider = createCarbonProvider();
+    const reading = await provider.getReading(nsw);
+    expect(provider.live).toBe(false);
+    expect(reading).toMatchObject({ source: "ember-annual", granularity: "country", intensity: BASELINE_INTENSITY.AU!.intensity });
+    expect(reading.fallbackReason).toBeUndefined();
+  });
+
+  it("requests live data for the region's grid zone", async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({ zone: "AU-NSW", carbonIntensity: 612, datetime: "2026-09-17T06:00:00.000Z" }));
+    const provider = createCarbonProvider({ token: "test-token", fetch: fetchMock });
+
+    const reading = await provider.getReading(nsw);
+
+    expect(reading).toEqual({ intensity: 612, source: "electricity-maps", granularity: "grid-zone", asOf: "2026-09-17T06:00:00.000Z" });
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit];
+    expect(url.searchParams.get("zone")).toBe("AU-NSW");
+    expect((init.headers as Record<string, string>)["auth-token"]).toBe("test-token");
+  });
+
+  it("falls back to the annual average when a zone is not in the plan", async () => {
+    const provider = createCarbonProvider({ token: "test-token", fetch: async () => jsonResponse({ error: "forbidden" }, 403) });
+    const reading = await provider.getReading(nsw);
+    expect(reading.source).toBe("ember-annual");
+    expect(reading.fallbackReason).toMatch(/403/);
+  });
+
+  it("falls back when the response has an unexpected shape", async () => {
+    const provider = createCarbonProvider({ token: "test-token", fetch: async () => jsonResponse({ nope: true }) });
+    expect((await provider.getReading(nsw)).fallbackReason).toMatch(/unexpected response/);
+  });
+
+  it("shares one request per zone and refreshes after the TTL", async () => {
+    let clock = 0;
+    const fetchMock = vi.fn(async () => jsonResponse({ carbonIntensity: 500, datetime: "2026-09-17T06:00:00Z" }));
+    const provider = createCarbonProvider({ token: "t", fetch: fetchMock, ttlMs: 1000, now: () => clock });
+
+    await Promise.all([provider.getReading(nsw), provider.getReading(nsw2)]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    clock = 999;
+    await provider.getReading(nsw);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    clock = 1000;
+    await provider.getReading(nsw);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});

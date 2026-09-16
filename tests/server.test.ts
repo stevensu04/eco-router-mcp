@@ -16,9 +16,29 @@ describe("eco-router MCP server", () => {
     await client.close();
   });
 
-  it("exposes list_regions", async () => {
+  it("exposes list_regions and rank_regions", async () => {
     const { tools } = await client.listTools();
-    expect(tools.map((t) => t.name)).toContain("list_regions");
+    expect(tools.map((t) => t.name).sort()).toEqual(["list_regions", "rank_regions"]);
+  });
+
+  it("ranks EU regions using annual averages by default", async () => {
+    const result = await client.callTool({
+      name: "rank_regions",
+      arguments: { countries: ["SE", "FR", "DE", "PL"], limit: 3 },
+    });
+    const data = result.structuredContent as {
+      results: { country: string; carbonSource: string; rank: number }[];
+      notes: string[];
+    };
+    expect(result.isError).toBeFalsy();
+    expect(data.results).toHaveLength(3);
+    expect(data.results.every((r) => r.carbonSource === "ember-annual")).toBe(true);
+    expect(data.results[0]!.country).toBe("SE");
+  });
+
+  it("reports invalid combinations as tool errors", async () => {
+    const result = await client.callTool({ name: "rank_regions", arguments: { maxLatencyMs: 50 } });
+    expect(result.isError).toBe(true);
   });
 
   it("filters regions by provider", async () => {
