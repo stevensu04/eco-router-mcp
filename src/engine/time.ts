@@ -1,3 +1,11 @@
+// Zones that usually mean "not configured" (containers, CI) rather than where the user is.
+const UNINFORMATIVE_ZONES = new Set(["UTC", "Etc/UTC", "Etc/GMT", "GMT", "Etc/Universal", "Etc/Zulu"]);
+
+/** The host's IANA time zone, or undefined when it is missing or looks unconfigured. */
+export function detectSystemTimeZone(resolved = Intl.DateTimeFormat().resolvedOptions().timeZone): string | undefined {
+  return resolved && !UNINFORMATIVE_ZONES.has(resolved) ? resolved : undefined;
+}
+
 /** Throws a readable error unless `timeZone` is a valid IANA time zone name. */
 export function assertTimeZone(timeZone: string): void {
   try {

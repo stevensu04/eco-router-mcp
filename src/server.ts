@@ -121,7 +121,7 @@ const FindCleanWindowInput = z.object({
     .string()
     .optional()
     .describe(
-      'The user\'s IANA time zone, e.g. "Australia/Brisbane", to get local start times. If you do not know it, ask the user rather than guessing.',
+      'IANA time zone for local start times, e.g. "Australia/Brisbane". Defaults to the time zone of the computer running Eco Router; set it when the user is elsewhere.',
     ),
 });
 
@@ -130,6 +130,7 @@ const FindCleanWindowOutput = z.object({
   durationHours: z.number().int(),
   withinHours: z.number().int(),
   timezone: z.string().nullable(),
+  timezoneSource: z.enum(["request", "system"]).nullable(),
   evaluatedRegions: z.number().int(),
   evaluatedZones: z.number().int(),
   results: z.array(
@@ -165,6 +166,8 @@ const FindCleanWindowOutput = z.object({
 export interface ServerOptions {
   /** Defaults to annual averages only (no live data). */
   carbon?: CarbonProvider;
+  /** Default time zone for local times, usually the host's. */
+  systemTimeZone?: string;
 }
 
 /** Builds one MCP server instance with every Eco Router tool registered. */
@@ -250,7 +253,7 @@ export function createServer(options: ServerOptions = {}): McpServer {
       title: "Find the cleanest time to run a job",
       description:
         "For flexible batch jobs, find when in the next hours (up to 72) each candidate region's grid is forecast to be cleanest, " +
-        "and how much that saves compared with starting now. Pass the user's time zone to get local times. " +
+        "and how much that saves compared with starting now. Local times default to this computer's time zone. " +
         "Needs ELECTRICITY_MAPS_API_TOKEN with forecast access. " +
         `Limit candidates with regions, providers or countries (at most ${MAX_FORECAST_ZONES} grid zones per call).`,
       inputSchema: FindCleanWindowInput,
@@ -259,7 +262,7 @@ export function createServer(options: ServerOptions = {}): McpServer {
     },
     async (input) => {
       try {
-        const result = await findCleanWindows(carbon, input);
+        const result = await findCleanWindows(carbon, { ...input, fallbackTimezone: options.systemTimeZone });
         const lines = result.results.map(
           (r) =>
             `#${r.rank} grid ${r.gridZone} (${r.country}): start ` +

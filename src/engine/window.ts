@@ -16,6 +16,8 @@ export interface WindowOptions extends RegionFilter {
   limit?: number;
   /** IANA time zone for local times in the result, e.g. "Australia/Brisbane". */
   timezone?: string;
+  /** Used when `timezone` is not given, typically the host's time zone. */
+  fallbackTimezone?: string;
 }
 
 export interface WindowRegion {
@@ -53,6 +55,8 @@ export interface WindowSearchResult {
   durationHours: number;
   withinHours: number;
   timezone: string | null;
+  /** Whether `timezone` came from the request or the computer running Eco Router. */
+  timezoneSource: "request" | "system" | null;
   evaluatedRegions: number;
   evaluatedZones: number;
   results: WindowResult[];
@@ -101,7 +105,9 @@ export async function findCleanWindows(carbon: CarbonProvider, options: WindowOp
   if (options.durationHours > withinHours) {
     throw new Error(`A ${options.durationHours}-hour job cannot finish within ${withinHours} hours.`);
   }
-  const timezone = options.timezone?.trim() || null;
+  const requested = options.timezone?.trim() || null;
+  const timezone = requested ?? options.fallbackTimezone ?? null;
+  const timezoneSource = requested ? "request" : timezone ? "system" : null;
   if (timezone) assertTimeZone(timezone);
   const local = (iso: string) => (timezone ? formatLocal(iso, timezone) : null);
 
@@ -178,9 +184,11 @@ export async function findCleanWindows(carbon: CarbonProvider, options: WindowOp
   unavailable.sort((a, b) => a.gridZone.localeCompare(b.gridZone));
 
   const notes = [
-    timezone
+    timezoneSource === "request"
       ? `bestStart and bestEnd are UTC; bestStartLocal and bestEndLocal are in ${timezone}.`
-      : "Times are UTC and the user's time zone is unknown. Ask the user for it, or call again with timezone, instead of guessing a conversion.",
+      : timezoneSource === "system"
+        ? `bestStartLocal and bestEndLocal use this computer's time zone (${timezone}). If the user is somewhere else, call again with their timezone.`
+        : "Times are UTC and the user's time zone is unknown. Ask the user for it, or call again with timezone, instead of guessing a conversion.",
     "The first forecast hour stands in for starting now.",
     "Forecasts are estimates and change hourly; re-check shortly before starting.",
     "Live carbon data source: ElectricityMaps.com.",
@@ -194,6 +202,7 @@ export async function findCleanWindows(carbon: CarbonProvider, options: WindowOp
     durationHours: options.durationHours,
     withinHours,
     timezone,
+    timezoneSource,
     evaluatedRegions: candidates.length,
     evaluatedZones: byZone.size,
     results: found.slice(0, options.limit ?? 5).map((r, i) => ({ rank: i + 1, ...r })),

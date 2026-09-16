@@ -17,7 +17,7 @@ First public release.
   countries, latency and carbon intensity, and job emissions estimates.
 - `find_clean_window` tool: finds the lowest-carbon start time for a batch job
   in each grid zone over the next 72 hours, using Electricity Maps forecasts,
-  with optional local times for a given time zone.
+  with local times in the computer's time zone or a requested one.
 - `list_regions` tool: lists regions and the grid zone each one draws from.
 - Dataset of all 134 public AWS, Google Cloud and Azure regions, mapped to
   Electricity Maps grid zones, with notes where a mapping relies on an

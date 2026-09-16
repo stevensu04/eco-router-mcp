@@ -80,9 +80,27 @@ describe("findCleanWindows", () => {
     });
   });
 
+  it("falls back to the computer's time zone", async () => {
+    const result = await findCleanWindows(carbon, { regions: ["aws/eu-central-1"], durationHours: 2, fallbackTimezone: "Australia/Brisbane" }, REGIONS);
+    expect(result).toMatchObject({ timezone: "Australia/Brisbane", timezoneSource: "system" });
+    expect(result.results[0]!.bestStartLocal).toBe("2026-09-17 12:00 (GMT+10)");
+    expect(result.notes[0]).toMatch(/this computer's time zone/);
+  });
+
+  it("lets a requested time zone override the computer's", async () => {
+    const result = await findCleanWindows(
+      carbon,
+      { regions: ["aws/eu-central-1"], durationHours: 2, timezone: "Europe/Berlin", fallbackTimezone: "Australia/Brisbane" },
+      REGIONS,
+    );
+    expect(result).toMatchObject({ timezone: "Europe/Berlin", timezoneSource: "request" });
+    expect(result.results[0]!.bestStartLocal).toBe("2026-09-17 04:00 (GMT+2)");
+  });
+
   it("tells the agent to ask for the time zone instead of guessing", async () => {
     const result = await findCleanWindows(carbon, { regions: ["aws/eu-central-1"], durationHours: 2 }, REGIONS);
     expect(result.timezone).toBeNull();
+    expect(result.timezoneSource).toBeNull();
     expect(result.results[0]!.bestStartLocal).toBeNull();
     expect(result.notes[0]).toMatch(/Ask the user/);
   });

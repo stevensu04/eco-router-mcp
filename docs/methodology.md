@@ -112,10 +112,19 @@ processing.
 Results are sorted by the best window's average intensity, so the list answers
 both where and when to run.
 
-Times are always returned in UTC. Pass `timezone` (an IANA name such as
-`Australia/Brisbane`) to also get `bestStartLocal` and `bestEndLocal`, which
-account for daylight saving time. Without it, the result tells the agent to ask
-the user for their time zone rather than guess a conversion. Forecasts change every hour; check again shortly
+Times are always returned in UTC, together with `bestStartLocal` and
+`bestEndLocal`, which account for daylight saving time. The local time zone is
+chosen in this order:
+
+1. `timezone` in the request (an IANA name such as `Europe/Berlin`).
+2. The time zone of the computer running Eco Router. Because the server runs
+   locally over stdio, this is normally the user's own. Set the `TZ`
+   environment variable to override it.
+3. None, when the computer reports UTC, which usually means the zone was never
+   configured (for example in a container). The result then tells the agent to
+   ask the user rather than guess a conversion.
+
+`timezoneSource` says which of these was used. Forecasts change every hour; check again shortly
 before starting a long job.
 
 This tool needs live data. Annual averages do not change by hour, so without a
