@@ -36,6 +36,16 @@ describe("eco-router MCP server", () => {
     expect(data.results[0]!.country).toBe("SE");
   });
 
+  it("accepts EU as a country group", async () => {
+    const result = await client.callTool({ name: "rank_regions", arguments: { countries: ["EU"], limit: 20 } });
+    const data = result.structuredContent as { evaluated: number; results: { country: string }[] };
+    expect(result.isError).toBeFalsy();
+    expect(data.results.some((r) => ["CH", "GB", "NO"].includes(r.country))).toBe(false);
+
+    const listed = await client.callTool({ name: "list_regions", arguments: { country: "eu" } });
+    expect((listed.structuredContent as { count: number }).count).toBe(data.evaluated);
+  });
+
   it("tells US grids apart without a token", async () => {
     const result = await client.callTool({ name: "rank_regions", arguments: { countries: ["US"], limit: 20 } });
     const data = result.structuredContent as {

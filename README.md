@@ -60,11 +60,13 @@ any token.
 | `rank_regions` | Ranks regions by grid carbon intensity, optionally balanced against estimated latency from an `origin`. Supports `providers`, `countries`, `maxLatencyMs`, `maxCarbonIntensity`, `carbonWeight`, `energyKwh` and `limit`. |
 | `list_regions` | Lists cloud regions and the grid zone each one draws power from. Filter by `provider` (`aws`, `gcp`, `azure`) or `country`. |
 
+`countries` accepts ISO 3166-1 alpha-2 codes and the groups `EU` and `EEA`.
+
 Example request to `rank_regions`:
 
 ```json
 {
-  "countries": ["DE", "FR", "SE", "NL", "IE"],
+  "countries": ["EU"],
   "origin": { "lat": 50.11, "lon": 8.68 },
   "maxLatencyMs": 40,
   "energyKwh": 500

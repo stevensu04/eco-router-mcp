@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/server";
 import * as z from "zod";
 import { createCarbonProvider } from "./carbon/provider.js";
 import type { CarbonProvider } from "./carbon/types.js";
+import { COUNTRY_GROUPS, expandCountries } from "./data/countryGroups.js";
 import { REGIONS } from "./data/regions.js";
 import { rankRegions } from "./engine/rank.js";
 
@@ -22,13 +23,19 @@ const RegionSchema = z.object({
   gridZoneNote: z.string().optional(),
 });
 
+const GROUP_NAMES = Object.keys(COUNTRY_GROUPS).join(", ");
+
+const CountryOrGroup = z
+  .string()
+  .min(2)
+  .max(3)
+  .describe(`ISO 3166-1 alpha-2 country code (e.g. "DE"), or a group: ${GROUP_NAMES}.`);
+
 const ListRegionsInput = z.object({
   provider: ProviderSchema.optional().describe("Only return regions from this cloud provider."),
-  country: z
-    .string()
-    .length(2)
-    .optional()
-    .describe("Only return regions in this country (ISO 3166-1 alpha-2, e.g. \"DE\")."),
+  country: CountryOrGroup.optional().describe(
+    `Only return regions in this country (ISO 3166-1 alpha-2, e.g. "DE") or group (${GROUP_NAMES}).`,
+  ),
 });
 
 const ListRegionsOutput = z.object({
@@ -36,14 +43,14 @@ const ListRegionsOutput = z.object({
   regions: z.array(RegionSchema),
 });
 
-const CountryCode = z.string().length(2).describe("ISO 3166-1 alpha-2 country code.");
-
 const RankRegionsInput = z.object({
   providers: z.array(ProviderSchema).optional().describe("Only consider these cloud providers. Default: all."),
   countries: z
-    .array(CountryCode)
+    .array(CountryOrGroup)
     .optional()
-    .describe("Only consider regions in these countries, e.g. for data residency. Default: all."),
+    .describe(
+      `Only consider regions in these countries or groups (${GROUP_NAMES}), e.g. ["EU"] for EU data residency. Default: all.`,
+    ),
   origin: z
     .object({ lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180) })
     .optional()
@@ -109,10 +116,14 @@ export function createServer(options: ServerOptions = {}): McpServer {
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
     },
     async ({ provider, country }) => {
+      let countries: string[] | undefined;
+      try {
+        countries = country ? expandCountries([country]) : undefined;
+      } catch (error) {
+        return { isError: true, content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }] };
+      }
       const regions = REGIONS.filter(
-        (r) =>
-          (!provider || r.provider === provider) &&
-          (!country || r.country === country.toUpperCase()),
+        (r) => (!provider || r.provider === provider) && (!countries || countries.includes(r.country)),
       );
 
       // MCP clients such as Claude read `content`, so the text carries the data too.

@@ -1,4 +1,5 @@
 import type { CarbonProvider, CarbonReading } from "../carbon/types.js";
+import { expandCountries } from "../data/countryGroups.js";
 import { type CloudProvider, type CloudRegion, REGIONS } from "../data/regions.js";
 
 // Round-trip latency proxy from great-circle distance: a fixed overhead plus
@@ -8,7 +9,7 @@ const RTT_MS_PER_KM = 0.02;
 
 export interface RankOptions {
   providers?: CloudProvider[];
-  /** ISO alpha-2 allowlist, e.g. for data residency. */
+  /** ISO alpha-2 allowlist, or groups such as "EU", e.g. for data residency. */
   countries?: string[];
   origin?: { lat: number; lon: number };
   maxLatencyMs?: number;
@@ -73,7 +74,7 @@ export async function rankRegions(
   if (options.maxLatencyMs !== undefined && !options.origin) {
     throw new Error("maxLatencyMs needs an origin to estimate latency from.");
   }
-  const countries = options.countries?.map((c) => c.toUpperCase());
+  const countries = options.countries && expandCountries(options.countries);
   const candidates = regions.filter(
     (r) => (!options.providers?.length || options.providers.includes(r.provider)) && (!countries?.length || countries.includes(r.country)),
   );
