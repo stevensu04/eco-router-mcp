@@ -1,9 +1,19 @@
 {
   "name": "eco-router-mcp",
   "version": "0.1.0",
+  "mcpName": "io.github.stevensu04/eco-router-mcp",
   "description": "MCP server that helps AI agents pick the lowest-carbon cloud region for a workload.",
   "type": "module",
   "license": "MIT",
+  "author": "Steven Su",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stevensu04/eco-router-mcp.git"
+  },
+  "homepage": "https://github.com/stevensu04/eco-router-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/stevensu04/eco-router-mcp/issues"
+  },
   "bin": {
     "eco-router-mcp": "dist/index.js"
   },
@@ -19,7 +29,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "update:baseline": "tsx scripts/update-baseline.ts",
-    "update:egrid": "tsx scripts/update-egrid.ts"
+    "update:egrid": "tsx scripts/update-egrid.ts",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "keywords": [
     "mcp",

@@ -115,6 +115,11 @@ npm run update:egrid     # refreshes US grid averages from EPA eGRID
 - Region lists: official AWS, Google Cloud and Azure documentation. See
   [docs/regions.md](docs/regions.md).
 
+## Contributing
+
+Corrections to region data are especially welcome. See
+[CONTRIBUTING.md](CONTRIBUTING.md) to get started.
+
 ## Credits
 
 Eco Router started as a hackathon project. Thanks to the original team for the

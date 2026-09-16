@@ -1,0 +1,20 @@
+name: Feature request
+description: Suggest a new capability or data source.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the decision or workflow, not only the feature.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would help?
+  - type: textarea
+    id: data
+    attributes:
+      label: Data sources
+      description: If this needs new data, link to it and its license.

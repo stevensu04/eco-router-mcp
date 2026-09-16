@@ -1,0 +1,41 @@
+name: Bug report
+description: Something does not work as documented.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Include the tool call arguments and the output you got.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Eco Router version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: MCP client and Node.js version
+      placeholder: "Claude Code 2.x, Node.js 22.16"
+  - type: dropdown
+    id: live-data
+    attributes:
+      label: Is ELECTRICITY_MAPS_API_TOKEN set?
+      options:
+        - "No"
+        - "Yes"
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: "Never paste your API token into an issue."

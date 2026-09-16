@@ -1,0 +1,32 @@
+name: Grid mapping correction
+description: A cloud region is mapped to the wrong electricity grid zone, or an assumption can be confirmed.
+labels: ["data"]
+body:
+  - type: input
+    id: region
+    attributes:
+      label: Region
+      description: Provider and region id.
+      placeholder: "azure/westus3"
+    validations:
+      required: true
+  - type: input
+    id: current
+    attributes:
+      label: Current grid zone
+      placeholder: "US-SW-AZPS"
+    validations:
+      required: true
+  - type: input
+    id: proposed
+    attributes:
+      label: Correct grid zone
+      description: An Electricity Maps zone key. Leave blank if you are confirming the current one.
+      placeholder: "US-SW-SRP"
+  - type: textarea
+    id: source
+    attributes:
+      label: Public source
+      description: A link that shows where the datacenters are or which utility serves them, such as a utility announcement, sustainability report or planning filing.
+    validations:
+      required: true
