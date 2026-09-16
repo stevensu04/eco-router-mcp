@@ -141,7 +141,7 @@ Corrections to region data are especially welcome. See
 ## Credits
 
 Eco Router started as a hackathon project. Thanks to the original team for the
-scoring design this project builds on: Chris, Joli ([@L-Joli](https://github.com/L-Joli)),
+scoring design this project builds on: Chris ([@chrislee021225](https://github.com/chrislee021225)), Joli ([@L-Joli](https://github.com/L-Joli)),
 Bob ([@Loic0927](https://github.com/Loic0927)), Irene Tsai ([@YunTong09](https://github.com/YunTong09))
 and Steven Su ([@stevensu04](https://github.com/stevensu04)).
 
