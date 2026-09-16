@@ -12,6 +12,10 @@ electricity grids they draw from, so an agent can ask:
 
 and get back a ranked shortlist with the reasoning behind it.
 
+Carbon figures are location-based grid averages. They describe the grid that
+supplies each region, not the renewable energy a provider buys, so regions in
+the same grid get the same value. See [what the numbers represent](docs/methodology.md#what-the-carbon-numbers-represent).
+
 > **Status: early development (v0.1).** Not yet published to npm. See
 > [Roadmap](#roadmap).
 

@@ -90,6 +90,32 @@ npm run update:baseline   # national averages, src/data/baseline-intensity.ts
 npm run update:egrid      # US grid averages, src/data/zone-baseline-intensity.ts
 ```
 
+## What the carbon numbers represent
+
+### Location-based, not market-based
+
+Eco Router reports **location-based** carbon intensity: the emissions of the
+grid that physically supplies a region. It does not subtract renewable energy
+that a cloud provider buys through power purchase agreements or certificates
+(**market-based** accounting), and it does not use provider-published figures
+such as carbon-free energy percentages per region.
+
+As a result, every provider in the same grid zone gets the same carbon value.
+AWS `eu-north-1`, Google Cloud `europe-north2` and Azure `swedencentral` all
+use the `SE-SE3` figure.
+
+Location-based figures describe the grid your workload adds demand to, which
+suits comparing where to run new work. Market-based figures are what companies
+use for Scope 2 reporting under the GHG Protocol and are often lower. For
+those, use each provider's own carbon reporting tools.
+
+### Average, not marginal
+
+All sources give **average** intensity: total emissions divided by total
+electricity. They do not estimate **marginal** intensity, meaning the
+emissions of the power plant that responds when demand rises. Marginal
+signals, such as those from WattTime, can rank regions differently.
+
 ## Latency estimate
 
 Latency is estimated from the great-circle distance between `origin` and the
