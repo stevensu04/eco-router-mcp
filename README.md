@@ -46,6 +46,13 @@ setup. For hourly, grid-level data, set `ELECTRICITY_MAPS_API_TOKEN` to your
 own [Electricity Maps](https://www.electricitymaps.com/) API token. Zones your
 plan does not cover fall back to the annual average automatically.
 
+Your use of live data is governed by your own Electricity Maps plan and its
+[terms](https://help.electricitymaps.com/en/articles/11750446-terms-of-service).
+At the time of writing, Electricity Maps offers free access for academic and
+personal non-commercial use, and a 14-day trial for commercial evaluation.
+Commercial use requires a paid license. Eco Router does not provide or share
+any token.
+
 ## Tools
 
 | Tool | What it does |
@@ -97,8 +104,8 @@ npm run update:baseline  # refreshes annual averages from Ember
 
 - Annual carbon intensity: [Ember, Yearly Electricity Data](https://ember-energy.org/data/yearly-electricity-data/),
   licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
-- Live carbon intensity (optional): [Electricity Maps](https://www.electricitymaps.com/),
-  using your own API token and subject to its terms.
+- Live carbon intensity (optional): Source: [ElectricityMaps.com](https://www.electricitymaps.com/),
+  using your own API token and subject to the terms of your plan.
 - Region lists: official AWS, Google Cloud and Azure documentation. See
   [docs/regions.md](docs/regions.md).
 

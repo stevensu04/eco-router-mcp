@@ -29,7 +29,7 @@ candidates", not "zero carbon".
 | Granularity | Country, latest year | Grid zone, hourly |
 | Emissions scope | Lifecycle, gCO2e/kWh | Lifecycle, gCO2e/kWh (API default) |
 | Setup | None, shipped in the package | `ELECTRICITY_MAPS_API_TOKEN` |
-| License | CC BY 4.0 | Electricity Maps terms for your plan |
+| License | CC BY 4.0 | Your Electricity Maps plan: free for academic and personal non-commercial use, paid for commercial use |
 
 Both sources report lifecycle emissions, so they can be compared. They still
 differ in two ways. Ember describes electricity **generated** in a country over
@@ -41,6 +41,10 @@ When a token is set, each grid zone is requested once and cached for 30
 minutes. If the request fails (for example, a zone outside your plan), that
 region falls back to its annual average. The result then names the reason in
 `reason` and in the reading's `fallbackReason`.
+
+Whenever live values appear in a result, `notes` includes the attribution
+"Live carbon data source: ElectricityMaps.com", as the Electricity Maps terms
+require for data shown externally.
 
 ### Limits of the annual average
 

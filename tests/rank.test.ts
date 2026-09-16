@@ -77,6 +77,12 @@ describe("rankRegions", () => {
     expect(results).toHaveLength(1);
   });
 
+  it("attributes live data to Electricity Maps", async () => {
+    const { notes } = await rankRegions(carbon, {}, REGIONS);
+    expect(notes).toContain("Live carbon data source: ElectricityMaps.com.");
+    expect(notes.some((n) => n.includes("Ember"))).toBe(false);
+  });
+
   it("warns when national averages hide differences between grids", async () => {
     const national = fakeCarbon({ "AU-NSW": 520, "AU-VIC": 520, "SE-SE3": 35, DE: 334 }, {
       source: "ember-annual",

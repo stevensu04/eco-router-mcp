@@ -174,6 +174,9 @@ function buildNotes(carbon: CarbonProvider, ranked: { region: CloudRegion; readi
           : "Set ELECTRICITY_MAPS_API_TOKEN for grid-level live data."),
     );
   }
+  if (ranked.some((r) => r.reading.source === "electricity-maps")) {
+    notes.push("Live carbon data source: ElectricityMaps.com.");
+  }
   if (ranked.some((r) => r.reading.source === "ember-annual")) {
     notes.push("Annual averages: Ember Yearly Electricity Data, licensed CC BY 4.0.");
   }
