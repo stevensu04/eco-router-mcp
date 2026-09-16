@@ -12,8 +12,23 @@ export interface CarbonReading {
   fallbackReason?: string;
 }
 
+export interface ForecastPoint {
+  /** Start of the hour, ISO timestamp. */
+  datetime: string;
+  /** Forecast lifecycle emissions intensity, gCO2e/kWh. */
+  intensity: number;
+}
+
+export interface CarbonForecast {
+  /** Hourly points in time order, starting with the current hour. */
+  points: ForecastPoint[];
+  updatedAt?: string;
+}
+
 export interface CarbonProvider {
   /** True when live grid data can be requested. */
   readonly live: boolean;
   getReading(region: CloudRegion): Promise<CarbonReading>;
+  /** Hourly forecast for the region's grid zone. Rejects when forecasts are unavailable. */
+  getForecast(region: CloudRegion): Promise<CarbonForecast>;
 }

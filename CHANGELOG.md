@@ -15,6 +15,8 @@ First public release.
 - `rank_regions` tool: ranks cloud regions by grid carbon intensity,
   optionally balanced against estimated latency, with hard limits for
   countries, latency and carbon intensity, and job emissions estimates.
+- `find_clean_window` tool: finds the lowest-carbon start time for a batch job
+  in each grid zone over the next 72 hours, using Electricity Maps forecasts.
 - `list_regions` tool: lists regions and the grid zone each one draws from.
 - Dataset of all 134 public AWS, Google Cloud and Azure regions, mapped to
   Electricity Maps grid zones, with notes where a mapping relies on an

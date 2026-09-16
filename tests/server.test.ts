@@ -16,9 +16,18 @@ describe("eco-router MCP server", () => {
     await client.close();
   });
 
-  it("exposes list_regions and rank_regions", async () => {
+  it("exposes all tools", async () => {
     const { tools } = await client.listTools();
-    expect(tools.map((t) => t.name).sort()).toEqual(["list_regions", "rank_regions"]);
+    expect(tools.map((t) => t.name).sort()).toEqual(["find_clean_window", "list_regions", "rank_regions"]);
+  });
+
+  it("explains that find_clean_window needs a token", async () => {
+    const result = await client.callTool({
+      name: "find_clean_window",
+      arguments: { regions: ["aws/eu-north-1"], durationHours: 4 },
+    });
+    expect(result.isError).toBe(true);
+    expect(JSON.stringify(result.content)).toContain("ELECTRICITY_MAPS_API_TOKEN");
   });
 
   it("ranks EU regions using annual averages by default", async () => {

@@ -74,6 +74,37 @@ describe("createCarbonProvider", () => {
     expect((await provider.getReading(nsw)).fallbackReason).toMatch(/unexpected response/);
   });
 
+  it("explains that forecasts need a token", async () => {
+    await expect(createCarbonProvider().getForecast(nsw)).rejects.toThrow(/ELECTRICITY_MAPS_API_TOKEN/);
+  });
+
+  it("requests a 72-hour hourly forecast and sorts the points", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse({
+        zone: "AU-NSW",
+        forecast: [
+          { carbonIntensity: 480, datetime: "2026-09-17T01:00:00.000Z" },
+          { carbonIntensity: 500, datetime: "2026-09-17T00:00:00.000Z" },
+        ],
+        updatedAt: "2026-09-17T00:10:00.000Z",
+      }),
+    );
+    const provider = createCarbonProvider({ token: "test-token", fetch: fetchMock });
+
+    const forecast = await provider.getForecast(nsw);
+
+    expect(forecast.points.map((p) => p.intensity)).toEqual([500, 480]);
+    expect(forecast.updatedAt).toBe("2026-09-17T00:10:00.000Z");
+    const [url] = fetchMock.mock.calls[0] as unknown as [URL];
+    expect(url.pathname).toMatch(/carbon-intensity\/forecast$/);
+    expect(url.searchParams.get("horizonHours")).toBe("72");
+  });
+
+  it("rejects forecasts with no usable points", async () => {
+    const provider = createCarbonProvider({ token: "t", fetch: async () => jsonResponse({ forecast: [] }) });
+    await expect(provider.getForecast(nsw)).rejects.toThrow(/no usable forecast/);
+  });
+
   it("shares one request per zone and refreshes after the TTL", async () => {
     let clock = 0;
     const fetchMock = vi.fn(async () => jsonResponse({ carbonIntensity: 500, datetime: "2026-09-17T06:00:00Z" }));

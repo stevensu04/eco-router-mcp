@@ -62,6 +62,7 @@ any token.
 | Tool | What it does |
 |---|---|
 | `rank_regions` | Ranks regions by grid carbon intensity, optionally balanced against estimated latency from an `origin`. Supports `providers`, `countries`, `maxLatencyMs`, `maxCarbonIntensity`, `carbonWeight`, `energyKwh` and `limit`. |
+| `find_clean_window` | For flexible batch jobs, finds the start time in the next 72 hours with the lowest forecast carbon intensity in each grid zone, and the savings compared with starting now. Requires `ELECTRICITY_MAPS_API_TOKEN` with forecast access. |
 | `list_regions` | Lists cloud regions and the grid zone each one draws power from. Filter by `provider` (`aws`, `gcp`, `azure`) or `country`. |
 
 `countries` accepts ISO 3166-1 alpha-2 codes and the groups `EU` and `EEA`.
@@ -73,6 +74,18 @@ Example request to `rank_regions`:
   "countries": ["EU"],
   "origin": { "lat": 50.11, "lon": 8.68 },
   "maxLatencyMs": 40,
+  "energyKwh": 500
+}
+```
+
+Example request to `find_clean_window` for a 6-hour job that must finish within
+two days:
+
+```json
+{
+  "countries": ["DE", "FR", "SE"],
+  "durationHours": 6,
+  "withinHours": 48,
   "energyKwh": 500
 }
 ```
@@ -93,7 +106,7 @@ documented in [docs/regions.md](docs/regions.md).
       with hard limits such as allowed countries or a carbon ceiling
 - [x] US grid-level annual data without a token (EPA eGRID)
 - [ ] Grid-level annual data for Canada, Australia, India, Japan and Brazil
-- [ ] Time shifting: suggest when to run, using carbon forecasts
+- [x] Time shifting: suggest when to run, using carbon forecasts
 - [ ] Publish to npm and the MCP Registry
 
 ## Development

@@ -20,6 +20,9 @@ function fakeCarbon(byZone: Record<string, number>, partial: Partial<CarbonReadi
       asOf: "2026-09-17T00:00:00Z",
       ...partial,
     }),
+    getForecast: async () => {
+      throw new Error("not used");
+    },
   };
 }
 

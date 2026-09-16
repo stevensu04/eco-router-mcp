@@ -5,6 +5,8 @@ import type { CarbonProvider } from "./carbon/types.js";
 import { COUNTRY_GROUPS, expandCountries } from "./data/countryGroups.js";
 import { REGIONS } from "./data/regions.js";
 import { rankRegions } from "./engine/rank.js";
+import { findCleanWindows, MAX_FORECAST_ZONES } from "./engine/window.js";
+import { MAX_FORECAST_HOURS } from "./carbon/electricityMaps.js";
 
 export const SERVER_NAME = "eco-router";
 export const SERVER_VERSION = "0.1.0";
@@ -95,6 +97,62 @@ const RankRegionsOutput = z.object({
   notes: z.array(z.string()),
 });
 
+const FindCleanWindowInput = z.object({
+  regions: z
+    .array(z.string())
+    .optional()
+    .describe('Candidate regions as provider/id, e.g. ["aws/eu-north-1", "gcp/europe-west9"]. Tip: shortlist with rank_regions first.'),
+  providers: z.array(ProviderSchema).optional().describe("Only consider these cloud providers."),
+  countries: z
+    .array(CountryOrGroup)
+    .optional()
+    .describe(`Only consider regions in these countries or groups (${GROUP_NAMES}).`),
+  durationHours: z.number().int().min(1).max(MAX_FORECAST_HOURS).describe("How long the job runs, in whole hours."),
+  withinHours: z
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_FORECAST_HOURS)
+    .optional()
+    .describe(`The job must finish within this many hours from now. Default 24, max ${MAX_FORECAST_HOURS}.`),
+  energyKwh: z.number().positive().optional().describe("Estimated job energy, to report emissions for each option."),
+  limit: z.number().int().min(1).max(20).optional().describe("How many options to return. Default 5."),
+});
+
+const FindCleanWindowOutput = z.object({
+  generatedAt: z.string(),
+  durationHours: z.number().int(),
+  withinHours: z.number().int(),
+  evaluatedRegions: z.number().int(),
+  evaluatedZones: z.number().int(),
+  results: z.array(
+    z.object({
+      rank: z.number().int(),
+      gridZone: z.string(),
+      country: z.string(),
+      regions: z.array(
+        z.object({
+          provider: ProviderSchema,
+          id: z.string(),
+          name: z.string(),
+          location: z.string(),
+          gridZoneNote: z.string().optional(),
+        }),
+      ),
+      bestStart: z.string(),
+      bestEnd: z.string(),
+      bestIntensity: z.number(),
+      startNowIntensity: z.number(),
+      savingsVsNowPercent: z.number(),
+      estimatedKgCO2e: z.number().nullable(),
+      estimatedKgCO2eIfStartedNow: z.number().nullable(),
+      forecastUpdatedAt: z.string().nullable(),
+    }),
+  ),
+  unavailable: z.array(z.object({ gridZone: z.string(), regions: z.array(z.string()), reason: z.string() })),
+  notes: z.array(z.string()),
+});
+
 export interface ServerOptions {
   /** Defaults to annual averages only (no live data). */
   carbon?: CarbonProvider;
@@ -172,6 +230,50 @@ export function createServer(options: ServerOptions = {}): McpServer {
         return {
           isError: true,
           content: [{ type: "text", text: error instanceof Error ? error.message : "Ranking failed." }],
+        };
+      }
+    },
+  );
+
+  server.registerTool(
+    "find_clean_window",
+    {
+      title: "Find the cleanest time to run a job",
+      description:
+        "For flexible batch jobs, find when in the next hours (up to 72) each candidate region's grid is forecast to be cleanest, " +
+        "and how much that saves compared with starting now. Needs ELECTRICITY_MAPS_API_TOKEN with forecast access. " +
+        `Limit candidates with regions, providers or countries (at most ${MAX_FORECAST_ZONES} grid zones per call).`,
+      inputSchema: FindCleanWindowInput,
+      outputSchema: FindCleanWindowOutput,
+      annotations: { readOnlyHint: true, idempotentHint: false, openWorldHint: true },
+    },
+    async (input) => {
+      try {
+        const result = await findCleanWindows(carbon, input);
+        const lines = result.results.map(
+          (r) =>
+            `#${r.rank} grid ${r.gridZone} (${r.country}): start ${r.bestStart}, ` +
+            `average ${r.bestIntensity} gCO2e/kWh over ${result.durationHours} h ` +
+            `(starting now: ${r.startNowIntensity}, ${r.savingsVsNowPercent}% lower)` +
+            (r.estimatedKgCO2e === null ? "" : `; about ${r.estimatedKgCO2e} kg CO2e vs ${r.estimatedKgCO2eIfStartedNow} kg now`) +
+            `. Regions: ${r.regions.map((x) => `${x.provider}/${x.id} (${x.location})`).join(", ")}`,
+        );
+        const skipped = result.unavailable.length
+          ? [`No forecast for ${result.unavailable.length} grid zone(s): ${result.unavailable.map((u) => `${u.gridZone} (${u.reason})`).join("; ")}`]
+          : [];
+        const text = [
+          `Best start time per grid zone for a ${result.durationHours}-hour job finishing within ${result.withinHours} hours ` +
+            `(${result.evaluatedRegions} regions in ${result.evaluatedZones} zones):`,
+          ...lines,
+          ...skipped,
+          "",
+          ...result.notes.map((n) => `Note: ${n}`),
+        ].join("\n");
+        return { content: [{ type: "text", text }], structuredContent: result };
+      } catch (error) {
+        return {
+          isError: true,
+          content: [{ type: "text", text: error instanceof Error ? error.message : "Forecast search failed." }],
         };
       }
     },

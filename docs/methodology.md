@@ -90,6 +90,32 @@ npm run update:baseline   # national averages, src/data/baseline-intensity.ts
 npm run update:egrid      # US grid averages, src/data/zone-baseline-intensity.ts
 ```
 
+## Finding a clean time window
+
+`find_clean_window` is for jobs that can wait, such as training runs or batch
+processing.
+
+1. **Select candidates** with `regions`, `providers` and `countries`. Regions
+   in the same grid zone share one forecast, so each zone is requested once
+   and reported once, with its regions listed. At most 15 zones are allowed
+   per call, to protect small API plans.
+2. **Fetch forecasts.** Eco Router requests Electricity Maps' hourly carbon
+   intensity forecast for up to 72 hours. Zones without a forecast are listed
+   under `unavailable`.
+3. **Slide a window.** For a job of `durationHours`, every whole-hour start is
+   tried, as long as the job finishes within `withinHours` (default 24). The
+   start with the lowest average forecast intensity wins.
+4. **Compare with now.** The first forecast hour stands in for starting
+   immediately. `savingsVsNowPercent` is how much lower the best window's
+   average is.
+
+Results are sorted by the best window's average intensity, so the list answers
+both where and when to run. Forecasts change every hour; check again shortly
+before starting a long job.
+
+This tool needs live data. Annual averages do not change by hour, so without a
+token it returns an error that points to `rank_regions`.
+
 ## What the carbon numbers represent
 
 ### Location-based, not market-based

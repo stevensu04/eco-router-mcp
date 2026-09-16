@@ -1,6 +1,6 @@
 import type { CarbonProvider, CarbonReading } from "../carbon/types.js";
-import { expandCountries } from "../data/countryGroups.js";
 import { type CloudProvider, type CloudRegion, REGIONS } from "../data/regions.js";
+import { selectRegions } from "./select.js";
 
 // Round-trip latency proxy from great-circle distance: a fixed overhead plus
 // fibre propagation with typical routing detours. No live telemetry.
@@ -74,10 +74,7 @@ export async function rankRegions(
   if (options.maxLatencyMs !== undefined && !options.origin) {
     throw new Error("maxLatencyMs needs an origin to estimate latency from.");
   }
-  const countries = options.countries && expandCountries(options.countries);
-  const candidates = regions.filter(
-    (r) => (!options.providers?.length || options.providers.includes(r.provider)) && (!countries?.length || countries.includes(r.country)),
-  );
+  const candidates = selectRegions({ providers: options.providers, countries: options.countries }, regions);
 
   const rows = await Promise.all(
     candidates.map(async (region) => ({
@@ -133,7 +130,7 @@ export async function rankRegions(
     carbonGranularity: reading.granularity,
     carbonAsOf: reading.asOf,
     estimatedRttMs: rtt,
-    estimatedKgCO2e: options.energyKwh === undefined ? null : Math.round(reading.intensity * options.energyKwh) / 1000,
+    estimatedKgCO2e: options.energyKwh === undefined ? null : Math.round((reading.intensity * options.energyKwh) / 100) / 10,
     score,
     reason: describe(reading, rtt),
   }));
