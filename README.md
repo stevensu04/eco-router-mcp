@@ -41,8 +41,8 @@ claude mcp add eco-router -- npx -y eco-router-mcp
 
 ### Live grid data (optional)
 
-Out of the box, Eco Router uses national annual averages, so it works with no
-setup. For hourly, grid-level data, set `ELECTRICITY_MAPS_API_TOKEN` to your
+Out of the box, Eco Router uses annual averages (per grid in the US, per
+country elsewhere), so it works with no setup. For hourly, grid-level data, set `ELECTRICITY_MAPS_API_TOKEN` to your
 own [Electricity Maps](https://www.electricitymaps.com/) API token. Zones your
 plan does not cover fall back to the annual average automatically.
 
@@ -85,7 +85,8 @@ documented in [docs/regions.md](docs/regions.md).
       optional Electricity Maps API token
 - [x] `rank_regions`: rank regions by carbon intensity and estimated latency,
       with hard limits such as allowed countries or a carbon ceiling
-- [ ] Sub-national annual data without a token (for example EPA eGRID for US grids)
+- [x] US grid-level annual data without a token (EPA eGRID)
+- [ ] Grid-level annual data for Canada, Australia, India, Japan and Brazil
 - [ ] Time shifting: suggest when to run, using carbon forecasts
 - [ ] Publish to npm and the MCP Registry
 
@@ -97,13 +98,16 @@ npm test           # unit tests, no network needed
 npm run typecheck
 npm run build      # compiles to dist/
 npm run dev        # runs the server over stdio from source
-npm run update:baseline  # refreshes annual averages from Ember
+npm run update:baseline  # refreshes national averages from Ember
+npm run update:egrid     # refreshes US grid averages from EPA eGRID
 ```
 
 ## Data sources
 
 - Annual carbon intensity: [Ember, Yearly Electricity Data](https://ember-energy.org/data/yearly-electricity-data/),
   licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+- US grid generation mix: [US EPA eGRID](https://www.epa.gov/egrid) (public domain),
+  converted to lifecycle emissions with Ember's US factors.
 - Live carbon intensity (optional): Source: [ElectricityMaps.com](https://www.electricitymaps.com/),
   using your own API token and subject to the terms of your plan.
 - Region lists: official AWS, Google Cloud and Azure documentation. See

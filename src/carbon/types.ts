@@ -3,7 +3,7 @@ import type { CloudRegion } from "../data/regions.js";
 export interface CarbonReading {
   /** Lifecycle emissions intensity, gCO2e/kWh. */
   intensity: number;
-  source: "electricity-maps" | "ember-annual";
+  source: "electricity-maps" | "epa-egrid-annual" | "ember-annual";
   /** Whether the value describes the region's grid zone or its whole country. */
   granularity: "grid-zone" | "country";
   /** ISO timestamp for live data, or the calendar year for an annual average. */

@@ -36,6 +36,19 @@ describe("eco-router MCP server", () => {
     expect(data.results[0]!.country).toBe("SE");
   });
 
+  it("tells US grids apart without a token", async () => {
+    const result = await client.callTool({ name: "rank_regions", arguments: { countries: ["US"], limit: 20 } });
+    const data = result.structuredContent as {
+      results: { id: string; gridZone: string; carbonSource: string; carbonIntensity: number }[];
+      notes: string[];
+    };
+    expect(data.results.every((r) => r.carbonSource === "epa-egrid-annual")).toBe(true);
+    // Grant County PUD (Quincy, Washington) is almost all hydro.
+    expect(data.results[0]!.gridZone).toBe("US-NW-GCPD");
+    expect(new Set(data.results.map((r) => r.carbonIntensity)).size).toBeGreaterThan(5);
+    expect(data.notes.some((n) => n.includes("share a national annual average"))).toBe(false);
+  });
+
   it("reports invalid combinations as tool errors", async () => {
     const result = await client.callTool({ name: "rank_regions", arguments: { maxLatencyMs: 50 } });
     expect(result.isError).toBe(true);

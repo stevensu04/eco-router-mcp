@@ -1,5 +1,6 @@
 import { BASELINE_INTENSITY } from "../data/baseline-intensity.js";
 import type { CloudRegion } from "../data/regions.js";
+import { ZONE_BASELINE_INTENSITY } from "../data/zone-baseline-intensity.js";
 import { fetchLatestIntensity } from "./electricityMaps.js";
 import type { CarbonProvider, CarbonReading } from "./types.js";
 
@@ -7,16 +8,16 @@ import type { CarbonProvider, CarbonReading } from "./types.js";
 // the caller's plan is not retried on every request.
 const DEFAULT_TTL_MS = 30 * 60 * 1000;
 
+/** Annual average for the region: its grid zone where available, otherwise its country. */
 export function baselineReading(region: CloudRegion, fallbackReason?: string): CarbonReading {
-  const baseline = BASELINE_INTENSITY[region.country];
-  if (!baseline) throw new Error(`No baseline carbon intensity for country ${region.country}`);
-  return {
-    intensity: baseline.intensity,
-    source: "ember-annual",
-    granularity: "country",
-    asOf: String(baseline.year),
-    ...(fallbackReason ? { fallbackReason } : {}),
-  };
+  const reason = fallbackReason ? { fallbackReason } : {};
+  const zone = ZONE_BASELINE_INTENSITY[region.gridZone];
+  if (zone) {
+    return { intensity: zone.intensity, source: "epa-egrid-annual", granularity: "grid-zone", asOf: String(zone.year), ...reason };
+  }
+  const country = BASELINE_INTENSITY[region.country];
+  if (!country) throw new Error(`No baseline carbon intensity for country ${region.country}`);
+  return { intensity: country.intensity, source: "ember-annual", granularity: "country", asOf: String(country.year), ...reason };
 }
 
 export interface CarbonProviderOptions {

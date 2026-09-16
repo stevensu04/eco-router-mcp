@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createCarbonProvider } from "../src/carbon/provider.js";
 import { BASELINE_INTENSITY } from "../src/data/baseline-intensity.js";
 import { type CloudRegion, REGIONS } from "../src/data/regions.js";
+import { ZONE_BASELINE_INTENSITY } from "../src/data/zone-baseline-intensity.js";
 
 const nsw: CloudRegion = { provider: "aws", id: "ap-southeast-2", name: "Sydney", location: "Sydney", country: "AU", lat: -33.87, lon: 151.21, gridZone: "AU-NSW" };
 const nsw2: CloudRegion = { ...nsw, provider: "azure", id: "australiaeast" };
@@ -10,9 +11,16 @@ function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 }
 
+const virginia: CloudRegion = { provider: "aws", id: "us-east-1", name: "US East (N. Virginia)", location: "N. Virginia", country: "US", lat: 39.04, lon: -77.49, gridZone: "US-MIDA-PJM" };
+
 describe("baseline data", () => {
   it("has an annual average for every region's country", () => {
     const missing = [...new Set(REGIONS.map((r) => r.country))].filter((c) => !BASELINE_INTENSITY[c]);
+    expect(missing).toEqual([]);
+  });
+
+  it("has a grid-level annual average for every US region", () => {
+    const missing = REGIONS.filter((r) => r.country === "US" && !ZONE_BASELINE_INTENSITY[r.gridZone]).map((r) => r.id);
     expect(missing).toEqual([]);
   });
 });
@@ -24,6 +32,22 @@ describe("createCarbonProvider", () => {
     expect(provider.live).toBe(false);
     expect(reading).toMatchObject({ source: "ember-annual", granularity: "country", intensity: BASELINE_INTENSITY.AU!.intensity });
     expect(reading.fallbackReason).toBeUndefined();
+  });
+
+  it("prefers a grid-level annual average over the national one", async () => {
+    const reading = await createCarbonProvider().getReading(virginia);
+    expect(reading).toMatchObject({
+      source: "epa-egrid-annual",
+      granularity: "grid-zone",
+      intensity: ZONE_BASELINE_INTENSITY["US-MIDA-PJM"]!.intensity,
+    });
+  });
+
+  it("falls back to the grid-level average when live data fails", async () => {
+    const provider = createCarbonProvider({ token: "test-token", fetch: async () => jsonResponse({}, 401) });
+    const reading = await provider.getReading(virginia);
+    expect(reading.source).toBe("epa-egrid-annual");
+    expect(reading.fallbackReason).toMatch(/401/);
   });
 
   it("requests live data for the region's grid zone", async () => {

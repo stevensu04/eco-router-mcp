@@ -148,10 +148,11 @@ export async function rankRegions(
 }
 
 function describe(reading: CarbonReading, rtt: number | null): string {
-  const source =
-    reading.source === "electricity-maps"
-      ? `live grid data from Electricity Maps, ${reading.asOf}`
-      : `${reading.asOf} national average from Ember`;
+  const source = {
+    "electricity-maps": `live grid data from Electricity Maps, ${reading.asOf}`,
+    "epa-egrid-annual": `${reading.asOf} grid average from EPA eGRID`,
+    "ember-annual": `${reading.asOf} national average from Ember`,
+  }[reading.source];
   const parts = [`${Math.round(reading.intensity)} gCO2e/kWh (${source})`];
   if (rtt !== null) parts.push(`about ${rtt} ms round trip from origin`);
   if (reading.fallbackReason) parts.push(`live data fell back: ${reading.fallbackReason}`);
@@ -177,7 +178,13 @@ function buildNotes(carbon: CarbonProvider, ranked: { region: CloudRegion; readi
   if (ranked.some((r) => r.reading.source === "electricity-maps")) {
     notes.push("Live carbon data source: ElectricityMaps.com.");
   }
-  if (ranked.some((r) => r.reading.source === "ember-annual")) {
+  if (ranked.some((r) => r.reading.source === "epa-egrid-annual")) {
+    notes.push(
+      "US grid averages: US EPA eGRID generation mix with Ember lifecycle factors. " +
+        "They describe generation inside each balancing authority and ignore imports.",
+    );
+  }
+  if (ranked.some((r) => r.reading.source !== "electricity-maps")) {
     notes.push("Annual averages: Ember Yearly Electricity Data, licensed CC BY 4.0.");
   }
   notes.push("Latency is a rough estimate from distance, not a measurement.");
