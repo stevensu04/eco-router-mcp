@@ -16,7 +16,8 @@ Carbon figures are location-based grid averages. They describe the grid that
 supplies each region, not the renewable energy a provider buys, so regions in
 the same grid get the same value. See [what the numbers represent](docs/methodology.md#what-the-carbon-numbers-represent).
 
-> **Status: early development (v0.1).** Not yet published to npm. See
+> **Status: early release (v0.1).** Corrections and feedback are welcome in
+> [issues](https://github.com/stevensu04/eco-router-mcp/issues). See
 > [Roadmap](#roadmap).
 
 ## Install
@@ -109,7 +110,7 @@ documented in [docs/regions.md](docs/regions.md).
 - [x] Canadian provincial annual data without a token (National Inventory Report)
 - [ ] Grid-level annual data for Australia
 - [x] Time shifting: suggest when to run, using carbon forecasts
-- [ ] Publish to npm and the MCP Registry
+- [x] Publish to npm and the MCP Registry
 
 ## Development
 
