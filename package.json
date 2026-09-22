@@ -1,6 +1,6 @@
 {
   "name": "eco-router-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "mcpName": "io.github.stevensu04/eco-router-mcp",
   "description": "MCP server that helps AI agents pick the lowest-carbon cloud region for a workload.",
   "type": "module",

@@ -9,20 +9,36 @@ import { findCleanWindows, MAX_FORECAST_ZONES } from "./engine/window.js";
 import { MAX_FORECAST_HOURS } from "./carbon/electricityMaps.js";
 
 export const SERVER_NAME = "eco-router";
-export const SERVER_VERSION = "0.1.0";
+export const SERVER_VERSION = "0.1.1";
 
 const ProviderSchema = z.enum(["aws", "gcp", "azure"]);
 
+const ProviderField = ProviderSchema.describe('Cloud provider: "aws", "gcp" (Google Cloud) or "azure".');
+const RegionIdField = z.string().describe('Provider\'s own region id, e.g. "eu-north-1". Pass it on as provider/id.');
+const RegionNameField = z.string().describe("Provider's display name for the region.");
+const LocationField = z.string().describe("City or area the region is in.");
+const CountryField = z.string().describe("ISO 3166-1 alpha-2 country code.");
+const GridZoneField = z.string().describe('Electricity Maps grid zone the region draws power from, e.g. "SE-SE3".');
+const GridZoneNoteField = z
+  .string()
+  .optional()
+  .describe("Present when the grid zone mapping rests on an assumption, such as which campus the region uses.");
+const GeneratedAtField = z.string().describe("When this response was computed, ISO 8601 UTC.");
+const NotesField = z
+  .array(z.string())
+  .describe("Caveats about data sources, precision and time zones. Pass relevant ones on to the user.");
+const KgCO2eField = z.number().nullable();
+
 const RegionSchema = z.object({
-  provider: ProviderSchema,
-  id: z.string(),
-  name: z.string(),
-  location: z.string(),
-  country: z.string(),
-  lat: z.number(),
-  lon: z.number(),
-  gridZone: z.string(),
-  gridZoneNote: z.string().optional(),
+  provider: ProviderField,
+  id: RegionIdField,
+  name: RegionNameField,
+  location: LocationField,
+  country: CountryField,
+  lat: z.number().describe("Approximate latitude of the region's datacenters."),
+  lon: z.number().describe("Approximate longitude of the region's datacenters."),
+  gridZone: GridZoneField,
+  gridZoneNote: GridZoneNoteField,
 });
 
 const GROUP_NAMES = Object.keys(COUNTRY_GROUPS).join(", ");
@@ -34,19 +50,24 @@ const CountryOrGroup = z
   .describe(`ISO 3166-1 alpha-2 country code (e.g. "DE"), or a group: ${GROUP_NAMES}.`);
 
 const ListRegionsInput = z.object({
-  provider: ProviderSchema.optional().describe("Only return regions from this cloud provider."),
+  provider: ProviderSchema.optional().describe(
+    'Only return regions from this cloud provider: "aws", "gcp" (Google Cloud) or "azure". Default: all.',
+  ),
   country: CountryOrGroup.optional().describe(
-    `Only return regions in this country (ISO 3166-1 alpha-2, e.g. "DE") or group (${GROUP_NAMES}).`,
+    `Only return regions in this country (ISO 3166-1 alpha-2, e.g. "DE") or group (${GROUP_NAMES}). Default: all.`,
   ),
 });
 
 const ListRegionsOutput = z.object({
-  count: z.number().int(),
-  regions: z.array(RegionSchema),
+  count: z.number().int().describe("Number of regions returned."),
+  regions: z.array(RegionSchema).describe("Matching regions, in dataset order."),
 });
 
 const RankRegionsInput = z.object({
-  providers: z.array(ProviderSchema).optional().describe("Only consider these cloud providers. Default: all."),
+  providers: z
+    .array(ProviderSchema)
+    .optional()
+    .describe('Only consider these cloud providers: "aws", "gcp" (Google Cloud), "azure". Default: all.'),
   countries: z
     .array(CountryOrGroup)
     .optional()
@@ -54,60 +75,98 @@ const RankRegionsInput = z.object({
       `Only consider regions in these countries or groups (${GROUP_NAMES}), e.g. ["EU"] for EU data residency. Default: all.`,
     ),
   origin: z
-    .object({ lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180) })
+    .object({
+      lat: z.number().min(-90).max(90).describe("Latitude in decimal degrees."),
+      lon: z.number().min(-180).max(180).describe("Longitude in decimal degrees."),
+    })
     .optional()
-    .describe("Where users or data are. Enables latency estimates and latency weighting."),
-  maxLatencyMs: z.number().positive().optional().describe("Exclude regions estimated slower than this round trip. Requires origin."),
-  maxCarbonIntensity: z.number().positive().optional().describe("Exclude regions above this carbon intensity, gCO2e/kWh."),
+    .describe(
+      "Where the users or data are, e.g. { lat: -27.47, lon: 153.03 } for Brisbane. Enables latency estimates, latency weighting and maxLatencyMs.",
+    ),
+  maxLatencyMs: z
+    .number()
+    .positive()
+    .optional()
+    .describe("Exclude regions whose estimated round trip from origin is above this, in milliseconds. Requires origin."),
+  maxCarbonIntensity: z
+    .number()
+    .positive()
+    .optional()
+    .describe("Exclude regions whose grid is above this carbon intensity, in gCO2e/kWh (e.g. 100)."),
   carbonWeight: z
     .number()
     .min(0)
     .max(1)
     .optional()
-    .describe("Weight on carbon versus latency, 0..1. Default 0.7. Only used with origin."),
-  energyKwh: z.number().positive().optional().describe("Estimated job energy, to report emissions per region."),
-  limit: z.number().int().min(1).max(20).optional().describe("How many regions to return. Default 5."),
+    .describe("How much carbon counts versus latency, from 0 (latency only) to 1 (carbon only). Default 0.7. Ignored without origin."),
+  energyKwh: z
+    .number()
+    .positive()
+    .optional()
+    .describe("Estimated energy the job uses, in kWh. When set, each result estimates the job's kg CO2e."),
+  limit: z.number().int().min(1).max(20).optional().describe("How many regions to return, 1 to 20. Default 5."),
 });
 
 const RankRegionsOutput = z.object({
-  generatedAt: z.string(),
-  evaluated: z.number().int(),
-  qualified: z.number().int(),
-  excluded: z.object({ maxCarbonIntensity: z.number().int(), maxLatencyMs: z.number().int() }),
-  results: z.array(
-    z.object({
-      rank: z.number().int(),
-      provider: ProviderSchema,
-      id: z.string(),
-      name: z.string(),
-      location: z.string(),
-      country: z.string(),
-      gridZone: z.string(),
-      gridZoneNote: z.string().optional(),
-      carbonIntensity: z.number(),
-      carbonSource: z.enum(["electricity-maps", "epa-egrid-annual", "eccc-nir-annual", "ember-annual"]),
-      carbonGranularity: z.enum(["grid-zone", "country"]),
-      carbonAsOf: z.string(),
-      estimatedRttMs: z.number().nullable(),
-      estimatedKgCO2e: z.number().nullable(),
-      score: z.number(),
-      reason: z.string(),
-    }),
-  ),
-  notes: z.array(z.string()),
+  generatedAt: GeneratedAtField,
+  evaluated: z.number().int().describe("Regions that matched the provider and country filters."),
+  qualified: z.number().int().describe("Of those, regions that also met maxCarbonIntensity and maxLatencyMs."),
+  excluded: z
+    .object({
+      maxCarbonIntensity: z.number().int().describe("Regions dropped for exceeding maxCarbonIntensity."),
+      maxLatencyMs: z.number().int().describe("Regions dropped for exceeding maxLatencyMs."),
+    })
+    .describe("How many regions each hard limit removed."),
+  results: z
+    .array(
+      z.object({
+        rank: z.number().int().describe("Position in the ranking, 1 is best."),
+        provider: ProviderField,
+        id: RegionIdField,
+        name: RegionNameField,
+        location: LocationField,
+        country: CountryField,
+        gridZone: GridZoneField,
+        gridZoneNote: GridZoneNoteField,
+        carbonIntensity: z.number().describe("Grid carbon intensity used for ranking, gCO2e/kWh."),
+        carbonSource: z
+          .enum(["electricity-maps", "epa-egrid-annual", "eccc-nir-annual", "ember-annual"])
+          .describe("Where carbonIntensity came from: live Electricity Maps data, or an annual average from EPA eGRID, Canada's NIR or Ember."),
+        carbonGranularity: z
+          .enum(["grid-zone", "country"])
+          .describe('"country" means a national average, so regions in the same country cannot be told apart.'),
+        carbonAsOf: z.string().describe("Timestamp of live data, or the year of an annual average."),
+        estimatedRttMs: z.number().nullable().describe("Round trip from origin estimated from distance, in ms. Null without origin."),
+        estimatedKgCO2e: KgCO2eField.describe("Estimated job emissions in kg CO2e. Null without energyKwh."),
+        score: z.number().describe("Relative score from 0 to 100 among the qualified regions; higher is better."),
+        reason: z.string().describe("One-line explanation of the carbon figure, its source and latency."),
+      }),
+    )
+    .describe("Best regions first, at most limit."),
+  notes: NotesField,
 });
 
 const FindCleanWindowInput = z.object({
   regions: z
     .array(z.string())
     .optional()
-    .describe('Candidate regions as provider/id, e.g. ["aws/eu-north-1", "gcp/europe-west9"]. Tip: shortlist with rank_regions first.'),
-  providers: z.array(ProviderSchema).optional().describe("Only consider these cloud providers."),
+    .describe(
+      'Candidate regions as provider/id, e.g. ["aws/eu-north-1", "gcp/europe-west9"]. Tip: shortlist with rank_regions first. All given filters must match.',
+    ),
+  providers: z
+    .array(ProviderSchema)
+    .optional()
+    .describe('Only consider these cloud providers: "aws", "gcp" (Google Cloud), "azure".'),
   countries: z
     .array(CountryOrGroup)
     .optional()
-    .describe(`Only consider regions in these countries or groups (${GROUP_NAMES}).`),
-  durationHours: z.number().int().min(1).max(MAX_FORECAST_HOURS).describe("How long the job runs, in whole hours."),
+    .describe(`Only consider regions in these countries or groups (${GROUP_NAMES}), e.g. ["DE", "FR"].`),
+  durationHours: z
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_FORECAST_HOURS)
+    .describe(`How long the job runs, in whole hours (1 to ${MAX_FORECAST_HOURS}). Must not exceed withinHours.`),
   withinHours: z
     .number()
     .int()
@@ -115,8 +174,12 @@ const FindCleanWindowInput = z.object({
     .max(MAX_FORECAST_HOURS)
     .optional()
     .describe(`The job must finish within this many hours from now. Default 24, max ${MAX_FORECAST_HOURS}.`),
-  energyKwh: z.number().positive().optional().describe("Estimated job energy, to report emissions for each option."),
-  limit: z.number().int().min(1).max(20).optional().describe("How many options to return. Default 5."),
+  energyKwh: z
+    .number()
+    .positive()
+    .optional()
+    .describe("Estimated energy the job uses, in kWh. When set, each option estimates kg CO2e, now and at the best time."),
+  limit: z.number().int().min(1).max(20).optional().describe("How many grid zones to return, 1 to 20. Default 5."),
   timezone: z
     .string()
     .optional()
@@ -126,41 +189,56 @@ const FindCleanWindowInput = z.object({
 });
 
 const FindCleanWindowOutput = z.object({
-  generatedAt: z.string(),
-  durationHours: z.number().int(),
-  withinHours: z.number().int(),
-  timezone: z.string().nullable(),
-  timezoneSource: z.enum(["request", "system"]).nullable(),
-  evaluatedRegions: z.number().int(),
-  evaluatedZones: z.number().int(),
-  results: z.array(
-    z.object({
-      rank: z.number().int(),
-      gridZone: z.string(),
-      country: z.string(),
-      regions: z.array(
-        z.object({
-          provider: ProviderSchema,
-          id: z.string(),
-          name: z.string(),
-          location: z.string(),
-          gridZoneNote: z.string().optional(),
-        }),
-      ),
-      bestStart: z.string(),
-      bestEnd: z.string(),
-      bestStartLocal: z.string().nullable(),
-      bestEndLocal: z.string().nullable(),
-      bestIntensity: z.number(),
-      startNowIntensity: z.number(),
-      savingsVsNowPercent: z.number(),
-      estimatedKgCO2e: z.number().nullable(),
-      estimatedKgCO2eIfStartedNow: z.number().nullable(),
-      forecastUpdatedAt: z.string().nullable(),
-    }),
-  ),
-  unavailable: z.array(z.object({ gridZone: z.string(), regions: z.array(z.string()), reason: z.string() })),
-  notes: z.array(z.string()),
+  generatedAt: GeneratedAtField,
+  durationHours: z.number().int().describe("Job length used, in hours."),
+  withinHours: z.number().int().describe("Deadline used, in hours from now."),
+  timezone: z.string().nullable().describe("IANA time zone of the local times, or null if unknown."),
+  timezoneSource: z
+    .enum(["request", "system"])
+    .nullable()
+    .describe('"request" if the caller set timezone, "system" if it is this computer\'s.'),
+  evaluatedRegions: z.number().int().describe("Regions that matched the filters."),
+  evaluatedZones: z.number().int().describe("Distinct grid zones those regions draw from; each zone is forecast once."),
+  results: z
+    .array(
+      z.object({
+        rank: z.number().int().describe("Position by bestIntensity, 1 is cleanest."),
+        gridZone: GridZoneField,
+        country: CountryField,
+        regions: z
+          .array(
+            z.object({
+              provider: ProviderField,
+              id: RegionIdField,
+              name: RegionNameField,
+              location: LocationField,
+              gridZoneNote: GridZoneNoteField,
+            }),
+          )
+          .describe("Candidate regions in this grid zone; they share the same best window."),
+        bestStart: z.string().describe("Cleanest start time, ISO 8601 UTC."),
+        bestEnd: z.string().describe("End of the job if started at bestStart, ISO 8601 UTC."),
+        bestStartLocal: z.string().nullable().describe("bestStart in timezone, or null without one."),
+        bestEndLocal: z.string().nullable().describe("bestEnd in timezone, or null without one."),
+        bestIntensity: z.number().describe("Average forecast intensity over the best window, gCO2e/kWh."),
+        startNowIntensity: z.number().describe("Average forecast intensity if the job started now, gCO2e/kWh."),
+        savingsVsNowPercent: z.number().describe("How much lower bestIntensity is than startNowIntensity, in percent."),
+        estimatedKgCO2e: KgCO2eField.describe("Estimated kg CO2e at the best time. Null without energyKwh."),
+        estimatedKgCO2eIfStartedNow: KgCO2eField.describe("Estimated kg CO2e if started now. Null without energyKwh."),
+        forecastUpdatedAt: z.string().nullable().describe("When Electricity Maps last updated this forecast, if known."),
+      }),
+    )
+    .describe("Cleanest grid zones first, at most limit."),
+  unavailable: z
+    .array(
+      z.object({
+        gridZone: GridZoneField,
+        regions: z.array(z.string()).describe("Affected regions as provider/id."),
+        reason: z.string().describe("Why no usable forecast was available."),
+      }),
+    )
+    .describe("Grid zones skipped because their forecast was missing or too short."),
+  notes: NotesField,
 });
 
 export interface ServerOptions {
@@ -180,7 +258,10 @@ export function createServer(options: ServerOptions = {}): McpServer {
     {
       title: "List cloud regions",
       description:
-        "List the cloud regions Eco Router knows about, with the electricity grid zone each one draws power from.",
+        "List the cloud regions Eco Router knows about (all public AWS, Google Cloud and Azure regions), with the electricity grid zone " +
+        "each one draws power from. Use it to look up valid region ids, written as provider/id (e.g. aws/eu-north-1), or to check " +
+        "which grid a region uses. Reads bundled data only: no carbon figures, no network calls, no API key. " +
+        "To compare regions by carbon, use rank_regions instead.",
       inputSchema: ListRegionsInput,
       outputSchema: ListRegionsOutput,
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
@@ -216,7 +297,9 @@ export function createServer(options: ServerOptions = {}): McpServer {
       description:
         "Rank AWS, Google Cloud and Azure regions for a workload by the carbon intensity of their electricity grid, " +
         "optionally balanced against estimated latency from an origin. Supports hard limits for allowed countries, " +
-        "maximum latency and maximum carbon intensity. Read `notes` before relying on close scores.",
+        "maximum latency and maximum carbon intensity. Use it to decide where to run; to decide when to start a flexible batch job, " +
+        "use find_clean_window. Works with no setup from annual grid averages; with ELECTRICITY_MAPS_API_TOKEN it uses live grid data, " +
+        "falling back to annual averages per zone. Scores are relative to the regions evaluated. Read `notes` before relying on close scores.",
       inputSchema: RankRegionsInput,
       outputSchema: RankRegionsOutput,
       annotations: { readOnlyHint: true, idempotentHint: false, openWorldHint: carbon.live },
@@ -255,7 +338,9 @@ export function createServer(options: ServerOptions = {}): McpServer {
         "For flexible batch jobs, find when in the next hours (up to 72) each candidate region's grid is forecast to be cleanest, " +
         "and how much that saves compared with starting now. Local times default to this computer's time zone. " +
         "Needs ELECTRICITY_MAPS_API_TOKEN with forecast access. " +
-        `Limit candidates with regions, providers or countries (at most ${MAX_FORECAST_ZONES} grid zones per call).`,
+        `Limit candidates with regions, providers or countries (at most ${MAX_FORECAST_ZONES} grid zones per call). ` +
+        "Use it when the job can wait; to choose a region, or without a token, use rank_regions. " +
+        "Regions on the same grid zone share one result.",
       inputSchema: FindCleanWindowInput,
       outputSchema: FindCleanWindowOutput,
       annotations: { readOnlyHint: true, idempotentHint: false, openWorldHint: true },

@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-22
+
+### Changed
+
+- Clearer tool descriptions for AI clients: when to use each tool versus the
+  others, data sources and setup needs, units, ranges and formats for every
+  parameter, and a description for every output field.
+
 ## [0.1.0] - 2026-09-17
 
 First public release.
@@ -31,5 +39,6 @@ First public release.
 - Scripts to refresh annual data from Ember, EPA eGRID and Canada's National
   Inventory Report.
 
-[Unreleased]: https://github.com/stevensu04/eco-router-mcp/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/stevensu04/eco-router-mcp/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/stevensu04/eco-router-mcp/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/stevensu04/eco-router-mcp/releases/tag/v0.1.0
